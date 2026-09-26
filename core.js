@@ -458,7 +458,7 @@
     const source = p.from
       ? `來自：${ymd(p.from.date)} ${p.from.title}`
       : `上傳：${userById(gallery.uploaderId).name}｜${dt(gallery.uploadedAt)}`;
-    const caption = `${gallery.title}｜${p.label}${p.shotAt ? `｜拍攝 ${dt(p.shotAt)}` : ''}`;
+    const caption = `${gallery.title}｜${p.label}`;
     // 觸控事件用小寫 ontouchstart：Preact 會直接當成 touchstart，不靠瀏覽器有沒有 ontouchstart 屬性來猜大小寫
     return html`
       <div class="overlay modal-mask" onClick=${onClose}></div>
@@ -483,10 +483,7 @@
           ${index < total - 1 && html`<button class="lb-nav next" aria-label="下一張" onClick=${() => go(1)}><${Icon} name="right" size=${32} /></button>`}
         </div>
         <div class="modal-foot">
-          <div class="lb-info">
-            <div>拍攝時間：${p.shotAt ? dt(p.shotAt) : '讀不到'}</div>
-            <div>${source}</div>
-          </div>
+          <div class="lb-info">${source}</div>
           <div class="btn-row modal-actions">
             <button class="btn btn-outline" onClick=${() => PR.downloadFile(p, 'photo', toast)}><${Icon} name="download" />下載這張</button>
             <button class="btn btn-outline" onClick=${() => PR.printFile(p, 'photo', caption, toast)}><${Icon} name="printer" />列印</button>

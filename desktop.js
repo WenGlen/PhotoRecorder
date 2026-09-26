@@ -267,7 +267,7 @@
             ${dlMode && html`<div class="d-dlbar" role="status">
               <span>${zipping
                 ? `正在打包 ${zipping.done} / ${zipping.total} 個檔案…`
-                : pickedN ? `已選 ${pickedN} 個檔案` : '點一筆記錄，勾選右邊的照片或文件；可以跨好幾筆一起選'}</span>
+                : pickedN ? `已選 ${pickedN} 個檔案` : '點任一筆記錄項目，再勾選右邊的照片或文件；可以跨好幾筆一起選'}</span>
               <div class="d-dlbar-actions">
                 ${pickedN > 0 && !zipping && html`<button class="link-btn" onClick=${() => setPicked({})}>清除</button>`}
                 <button class="btn btn-primary sm" disabled=${!pickedN || !!zipping} onClick=${download}>

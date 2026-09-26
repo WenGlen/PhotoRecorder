@@ -25,7 +25,7 @@ window.DEMO = (() => {
   const users = [
     { id: 'u1', name: '陳桂芳', email: 'chen.gf@example.com', role: 'admin', disabled: false },
     { id: 'u2', name: '王建宏', email: 'wang.jh@example.com', role: 'contractor', disabled: false },
-    { id: 'u3', name: '林雅婷', email: 'lin.yt@example.com', role: 'architect', disabled: false },
+    { id: 'u3', name: '江維玲', email: 'jiang.wl@example.com', role: 'architect', disabled: false },
     { id: 'u4', name: '張志明', email: 'chang.cm@example.com', role: 'contractor', disabled: false },
     { id: 'u5', name: '李秀英', email: 'lee.sy@example.com', role: 'amis', disabled: false },
     // 已離場的前工地主任：示範「帳號只停用不刪除，以前傳的資料仍看得到是誰傳的」
@@ -193,7 +193,7 @@ window.DEMO = (() => {
   const accountEvents = [
     { at: '2026-02-20T09:30:00+08:00', userId: 'u1', action: '帳號', target: '王建宏', detail: '新增帳號：承包商' },
     { at: '2026-02-20T09:32:00+08:00', userId: 'u1', action: '帳號', target: '吳俊賢', detail: '新增帳號：承包商' },
-    { at: '2026-02-20T09:35:00+08:00', userId: 'u1', action: '帳號', target: '林雅婷', detail: '新增帳號：建築師事務所' },
+    { at: '2026-02-20T09:35:00+08:00', userId: 'u1', action: '帳號', target: '江維玲', detail: '新增帳號：建築師事務所' },
     { at: '2026-02-20T09:40:00+08:00', userId: 'u1', action: '帳號', target: '張志明', detail: '新增帳號：承包商' },
     { at: '2026-03-01T10:00:00+08:00', userId: 'u1', action: '帳號', target: '李秀英', detail: '新增帳號：阿美中會' },
     { at: '2026-07-01T09:00:00+08:00', userId: 'u1', action: '帳號', target: '吳俊賢', detail: '停用帳號（已離場）' }

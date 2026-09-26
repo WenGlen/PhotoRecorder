@@ -251,7 +251,7 @@
       ${locked
         ? html`<div class="bill-lock">
             <span class="st st-pass"><${Icon} name="lock" size=${16} />請款完成</span>
-            <span class="bill-lock-note">${userById(bill.done.by).name}｜${dt(bill.done.at)} 標記完成，已鎖定不能修改${isAdmin(user) ? '' : '；要修改請找管理者解鎖'}</span>
+            <span class="bill-lock-note">${userById(bill.done.by).name}｜${dt(bill.done.at)} 完成，已鎖定</span>
             ${isAdmin(user) && html`<button class="btn btn-outline sm" onClick=${unlock}><${Icon} name="unlock" size=${20} />解鎖</button>`}
           </div>`
         : can && html`<div class="d-actions">
@@ -306,8 +306,7 @@
         onSave=${info => { actions.updateBilling(bill.id, info, `期別與日期改成「${billingName(info)}」`); setSheet(null); }} />`}
       ${sheet === 'merge' && html`<${MergeSheet} bill=${bill} data=${data} user=${user} actions=${actions} onClose=${() => setSheet(null)} />`}
       ${sheet === 'done' && html`<${Sheet} title="確定請款完成？" onClose=${() => setSheet(null)}>
-        <p>「${billingName(bill)}」標記完成後會鎖定：不能再整合施工日誌、選擇或上傳檔案，也不能修改期別與日期。</p>
-        <p class="muted">${isAdmin(user) ? '之後可以按「解鎖」恢復修改。' : '之後要修改，需要請管理者解鎖。'}</p>
+        <p>「${billingName(bill)}」標記完成後會鎖定不能修改</p>
         <button class="btn btn-primary btn-block btn-lg" onClick=${complete}>確定請款完成</button>
       <//>`}
       ${(sheet === 'photo' || sheet === 'pdf') && html`<${EntrySheet} kind=${sheet} bill=${bill} data=${data} user=${user} actions=${actions}
