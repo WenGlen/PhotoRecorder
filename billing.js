@@ -1,5 +1,5 @@
 /* 阿美中會工地記錄平台 Demo：請款（獨立的資料，不跟其他記錄共用；只有項目，沒有大分類、子分類）
-   每一期包含：整合施工日誌、記錄照片、記錄文件、估價單及其他文件 */
+   每一期包含：整合施工日誌、估價單、請款照片、書審及材料測試、其他文件 */
 (function () {
   'use strict';
 
@@ -9,7 +9,7 @@
   const { useState } = window.preactHooks;
   const {
     html, uid, fmtSize, nowIso, ymd, dt, addDays, today, userById, catById, billingName, canBilling, docMeta, byDateDesc,
-    toPhoto, toPdf, Icon, Photo, Sheet
+    toPhoto, toPdf, fromLabel, Icon, Photo, Sheet
   } = PR;
 
   /**
@@ -25,10 +25,68 @@
     return out;
   }
 
-  const summaryOf = b => [
-    b.merged ? `施工日誌 ${b.merged.pages} 頁` : '施工日誌還沒整合',
-    `照片 ${b.photos.length} 張`, `文件 ${b.docs.length} 份`, `估價單及其他 ${b.quotes.length} 份`
-  ].join('｜');
+  /**
+   * 照片名稱：開頭是日期時，日期跟項目分開排，放不下同一行就整段項目換到下一行，不會從字中間斷開。
+   * @param {{ text: string }} props
+   */
+  const Caption = ({ text }) => {
+    const m = /^(\d{4}\/\d{2}\/\d{2}) (.+)$/.exec(text);
+    return m ? html`<span class="cap-date">${m[1]}</span> <span class="cap-item">${m[2]}</span>` : text;
+  };
+
+  /** 請款照片給燈箱用：照片說明是請款裡取的名稱 */
+  const galleryOf = bill => ({
+    title: billingName(bill),
+    photos: bill.photos.map(e => ({ ...e.file, id: e.id, label: e.name, from: e.from }))
+  });
+  /** 書審及材料測試的文件：檔案本身，加上請款裡取的名稱和出處 */
+  const docFileOf = e => ({ ...e.file, id: e.id, name: e.name, from: e.from });
+
+  /**
+   * 把請款照片排成 A4 一頁兩張的 PDF，當成一份檔案（可以預覽、下載、列印）。
+   * @param {Object} bill 這一期請款
+   * @param {Object} user 目前的使用者
+   * @returns {Promise<Object>}
+   */
+  async function photosPdfFile(bill, user) {
+    const { blob, pages } = await PR.photosPdf(billingName(bill), bill.photos);
+    return {
+      id: uid('pp'), name: `第${bill.no}期請款照片.pdf`, pages, size: fmtSize(blob.size), url: URL.createObjectURL(blob),
+      uploaderId: user.id, uploadedAt: nowIso()
+    };
+  }
+
+  /**
+   * 請款項目底下的檔案：一個檔案一顆小按鈕，排成一串（不分種類換行），點了直接預覽。
+   * 順序：整合施工日誌 → 估價單 → 請款照片（整份 PDF，點了才產生）→ 書審及材料測試 → 其他文件。
+   * 按鈕在可點選的列裡面，點按鈕只預覽，不會順便打開側窗。
+   * @param {{ bill: Object, user: Object, actions: Object }} props
+   */
+  function BillFiles({ bill, user, actions }) {
+    const [making, setMaking] = useState(false);
+    const openPhotos = async () => {
+      setMaking(true);
+      try {
+        actions.openPdf(await photosPdfFile(bill, user));
+      } catch (e) {
+        actions.toast(e.message || '產生 PDF 失敗，請再試一次');
+      }
+      setMaking(false);
+    };
+    const pdfItem = f => ({ key: f.id, name: f.name, open: () => actions.openPdf(f) });
+    const items = [
+      ...(bill.merged ? [pdfItem(bill.merged)] : []),
+      ...bill.quotes.map(pdfItem),
+      ...(bill.photos.length ? [{ key: 'photos', name: making ? '正在產生請款照片…' : `第${bill.no}期請款照片.pdf`, open: openPhotos, busy: making }] : []),
+      ...bill.docs.map(e => pdfItem(docFileOf(e))),
+      ...bill.others.map(pdfItem)
+    ];
+    if (!items.length) return html`<div class="bill-files-empty">還沒有檔案</div>`;
+    return html`<div class="bill-chips">
+      ${items.map(it => html`<button key=${it.key} class="file-chip" title=${it.name} disabled=${!!it.busy}
+        onClick=${e => { e.stopPropagation(); it.open(); }}><${Icon} name="file" size=${16} /><span>${it.name}</span></button>`)}
+    </div>`;
+  }
 
   // ---------- 列表 ----------
   function BillingPage({ user, data, route, actions }) {
@@ -36,7 +94,8 @@
     const list = [...data.billing].sort((a, b) => b.no - a.no);
     const sel = route.id && data.billing.find(b => b.id === route.id);
     const select = id => actions.replace('#/billing/' + id);
-    const keys = id => e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(id); } };
+    // 列裡面的檔案按鈕自己處理鍵盤，列只接自己身上的 Enter／空白鍵
+    const keys = id => e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); select(id); } };
     return html`<div class=${'d-page d-split' + (sel ? ' has-detail' : '')}>
       <section class="d-list-col">
         <div class="d-toolbar">
@@ -49,17 +108,14 @@
           ${list.length === 0
             ? html`<div class="empty"><p>還沒有請款項目</p></div>`
             : html`<table class="d-table">
-              <thead><tr><th>項目名稱</th>${sel ? html`<th>內容</th>` : html`<th>整合施工日誌</th><th>記錄照片</th><th>記錄文件</th><th>估價單及其他</th>`}</tr></thead>
+              <thead><tr><th>請款項目</th></tr></thead>
               <tbody>
                 ${list.map(b => html`<tr key=${b.id} class=${'d-row' + (sel && sel.id === b.id ? ' on' : '')} tabIndex="0"
                   aria-selected=${!!sel && sel.id === b.id} onClick=${() => select(b.id)} onKeyDown=${keys(b.id)}>
-                  <td class="c-title">${billingName(b)}</td>
-                  ${sel
-                    ? html`<td class="c-sub">${summaryOf(b)}</td>`
-                    : html`<td class="c-nowrap">${b.merged ? `${b.merged.pages} 頁` : html`<span class="c-muted">還沒整合</span>`}</td>
-                      <td class="c-nowrap">${b.photos.length} 張</td>
-                      <td class="c-nowrap">${b.docs.length} 份</td>
-                      <td class="c-nowrap">${b.quotes.length} 份</td>`}
+                  <td>
+                    <div class="bill-name">${billingName(b)}</div>
+                    <${BillFiles} bill=${b} user=${user} actions=${actions} />
+                  </td>
                 </tr>`)}
               </tbody>
             </table>`}
@@ -119,14 +175,14 @@
     <//>`;
   }
 
-  // PDF 清單：點一下預覽，可以下載；估價單可以移除
+  // PDF 清單：點一下預覽，可以下載；估價單、其他文件可以移除
   function FileRows({ files, actions, onRemove }) {
     return html`<ul class="file-list">
       ${files.map(f => html`<li class="doc" key=${f.id}>
         <button class="file-row" onClick=${() => actions.openPdf(f)}>
           <${Icon} name="file" />
           <span class="file-name">${f.name}</span>
-          <span class="file-meta">${f.from ? `來自：${ymd(f.from.date)} ${f.from.title}｜` : ''}${docMeta(f)}</span>
+          <span class="file-meta">${f.from ? `來自：${fromLabel(f.from)}｜` : ''}${docMeta(f)}</span>
         </button>
         <div class="doc-actions">
           <button class="btn btn-outline sm" onClick=${() => PR.downloadFile(f, 'pdf', actions.toast)}><${Icon} name="download" size=${20} />下載</button>
@@ -141,32 +197,39 @@
     const can = canBilling(user);
     const [sheet, setSheet] = useState(null);
     const [printing, setPrinting] = useState(false);
-    const gallery = {
-      title: billingName(bill),
-      photos: bill.photos.map(e => ({ ...e.file, id: e.id, label: e.name, from: e.from }))
-    };
+    const gallery = galleryOf(bill);
     const printPhotos = async () => {
       setPrinting(true);
       try {
-        const { blob, pages } = await PR.photosPdf(billingName(bill), bill.photos);
-        actions.openPdf({
-          id: uid('pp'), name: `第${bill.no}期記錄照片.pdf`, pages, size: fmtSize(blob.size), url: URL.createObjectURL(blob),
-          uploaderId: user.id, uploadedAt: nowIso()
-        });
+        actions.openPdf(await photosPdfFile(bill, user));
       } catch (e) {
         actions.toast(e.message || '產生 PDF 失敗，請再試一次');
       }
       setPrinting(false);
     };
-    const addQuotes = async files => {
+    /** 直接上傳的 PDF（估價單、其他文件），可以一次選好幾份 */
+    const addFiles = async (key, label, files) => {
       const items = await PR.readFiles(files, 'pdf', { room: 0, toast: actions.toast });
       if (!items.length) return;
       const at = nowIso();
-      actions.updateBilling(bill.id, { quotes: [...bill.quotes, ...items.map(i => toPdf(i, user.id, at))] },
-        `上傳估價單及其他文件：${items.map(i => i.name).join('、')}`);
-      actions.toast(`已上傳 ${items.length} 份文件`);
+      actions.updateBilling(bill.id, { [key]: [...bill[key], ...items.map(i => toPdf(i, user.id, at))] },
+        `上傳${label}：${items.map(i => i.name).join('、')}`);
+      actions.toast(`已上傳 ${items.length} 份${label}`);
     };
-    const removeQuote = f => actions.updateBilling(bill.id, { quotes: bill.quotes.filter(q => q.id !== f.id) }, `移除「${f.name}」`);
+    const removeFile = (key, label) => f => actions.updateBilling(bill.id, { [key]: bill[key].filter(q => q.id !== f.id) }, `移除${label}「${f.name}」`);
+    /** 估價單、其他文件：標題旁邊是「上傳」，每份可以移除 */
+    const uploadSec = (key, label) => html`<section class="sec bill-sec">
+      <div class="sec-head">
+        <h3 class="d-sec-title">${label} ${bill[key].length} 份</h3>
+        ${can && html`<label class="btn btn-outline sm pick-inline">
+          <input type="file" multiple accept="application/pdf,.pdf" onChange=${e => { addFiles(key, label, e.target.files); e.target.value = ''; }} />
+          <${Icon} name="upload" size=${20} />上傳
+        </label>`}
+      </div>
+      ${bill[key].length
+        ? html`<${FileRows} files=${bill[key]} actions=${actions} onRemove=${can ? removeFile(key, label) : null} />`
+        : html`<p class="muted">還沒有${label}</p>`}
+    </section>`;
 
     return html`<div class="d-detail">
       <div class="d-detail-head">
@@ -186,20 +249,22 @@
           : html`<p class="muted">還沒有整合</p>`}
       </section>
 
+      ${uploadSec('quotes', '估價單')}
+
       <section class="sec bill-sec">
         <div class="sec-head">
-          <h3 class="d-sec-title">記錄照片 ${bill.photos.length} 張</h3>
+          <h3 class="d-sec-title">請款照片 ${bill.photos.length} 張</h3>
           <div class="sec-tools">
             ${bill.photos.length > 0 && html`<button class="btn btn-outline sm" disabled=${printing} onClick=${printPhotos}>
               <${Icon} name="printer" size=${20} />${printing ? '產生中…' : '列印'}</button>`}
-            ${can && html`<button class="btn btn-outline sm" onClick=${() => setSheet('photo')}>編輯照片</button>`}
+            ${can && html`<button class="btn btn-outline sm" onClick=${() => setSheet('photo')}>選擇照片</button>`}
           </div>
         </div>
         ${bill.photos.length
           ? html`<div class="bill-photos">
               ${bill.photos.map((e, i) => html`<figure class="bill-photo" key=${e.id}>
                 <button class="thumb" aria-label=${'看 ' + e.name} onClick=${() => actions.openGallery(gallery, i)}><${Photo} p=${e.file} bare /></button>
-                <figcaption>${e.name}</figcaption>
+                <figcaption><${Caption} text=${e.name} /></figcaption>
               </figure>`)}
             </div>`
           : html`<p class="muted">還沒有照片</p>`}
@@ -207,26 +272,15 @@
 
       <section class="sec bill-sec">
         <div class="sec-head">
-          <h3 class="d-sec-title">記錄文件 ${bill.docs.length} 份</h3>
+          <h3 class="d-sec-title">書審及材料測試 ${bill.docs.length} 份</h3>
           ${can && html`<button class="btn btn-outline sm" onClick=${() => setSheet('pdf')}>編輯文件</button>`}
         </div>
         ${bill.docs.length
-          ? html`<${FileRows} files=${bill.docs.map(e => ({ ...e.file, id: e.id, name: e.name, from: e.from }))} actions=${actions} />`
+          ? html`<${FileRows} files=${bill.docs.map(docFileOf)} actions=${actions} />`
           : html`<p class="muted">還沒有文件</p>`}
       </section>
 
-      <section class="sec bill-sec">
-        <div class="sec-head">
-          <h3 class="d-sec-title">估價單及其他文件 ${bill.quotes.length} 份</h3>
-          ${can && html`<label class="btn btn-outline sm pick-inline">
-            <input type="file" multiple accept="application/pdf,.pdf" onChange=${e => { addQuotes(e.target.files); e.target.value = ''; }} />
-            <${Icon} name="upload" size=${20} />上傳
-          </label>`}
-        </div>
-        ${bill.quotes.length
-          ? html`<${FileRows} files=${bill.quotes} actions=${actions} onRemove=${can ? removeQuote : null} />`
-          : html`<p class="muted">還沒有文件</p>`}
-      </section>
+      ${uploadSec('others', '其他文件')}
 
       ${sheet === 'edit' && html`<${BillingFormSheet} data=${data} bill=${bill} onClose=${() => setSheet(null)}
         onSave=${info => { actions.updateBilling(bill.id, info, `期別與日期改成「${billingName(info)}」`); setSheet(null); }} />`}
@@ -293,10 +347,10 @@
     const isPhoto = kind === 'photo';
     const [inRange, setInRange] = useState(true);
     const [q, setQ] = useState('');
-    const cats = isPhoto ? ['site', 'review'] : ['review'];
     const word = q.trim();
+    // 照片和文件都可以從工地記錄、書審及材料測試挑
     const recs = data.records
-      .filter(r => cats.includes(r.cat) && (isPhoto ? r.photos.length : r.pdfs.length))
+      .filter(r => (r.cat === 'site' || r.cat === 'review') && (isPhoto ? r.photos.length : r.pdfs.length))
       .filter(r => !inRange || (r.date >= bill.from && r.date <= bill.to))
       .filter(r => !word || `${r.title} ${r.tags.join(' ')}`.includes(word))
       .sort(byDateDesc);
@@ -330,7 +384,7 @@
     </div>`;
   }
 
-  // ---------- 記錄照片／記錄文件：一筆一筆加 ----------
+  // ---------- 請款照片／書審及材料測試：一筆一筆加 ----------
   function EntrySheet({ kind, bill, data, user, actions, onClose }) {
     const isPhoto = kind === 'photo';
     const [rows, setRows] = useState(() => (isPhoto ? bill.photos : bill.docs).map(e => ({ ...e })));
@@ -338,33 +392,45 @@
     const [err, setErr] = useState('');
     const set = (id, patch) => setRows(rs => rs.map(r => (r.id === id ? { ...r, ...patch } : r)));
     const addRow = () => setRows(rs => [...rs, { id: uid(isPhoto ? 'bp' : 'bd'), name: '', file: null, from: null }]);
+    /**
+     * 這一筆目前的預設名稱：從記錄挑的照片是「日期 項目」（例如「2026/07/08 一樓版灌漿」），文件是檔名。
+     * @param {{ file: ?Object, from: ?{ date: string, title: string } }} row
+     * @returns {string}
+     */
+    const autoName = row => (isPhoto ? (row.from ? fromLabel(row.from) : '') : (row.file ? row.file.name : ''));
+    /** 換照片或文件時的名稱：自己打的保留；空白或還是預設值，才換成新的預設值 */
+    const nameFor = (row, next) => (row.name && row.name !== autoName(row) ? row.name : next);
     const upload = async (row, files) => {
       const [it] = await PR.readFiles(files, kind, { room: 1, toast: actions.toast });
       if (!it) return;
-      set(row.id, { file: isPhoto ? toPhoto(it) : toPdf(it, user.id, nowIso()), from: null, name: row.name || (isPhoto ? '' : it.name) });
+      set(row.id, { file: isPhoto ? toPhoto(it) : toPdf(it, user.id, nowIso()), from: null, name: nameFor(row, isPhoto ? '' : it.name) });
     };
     const pick = (row, rec, file) => {
-      set(row.id, { file: { ...file }, from: { recId: rec.id, title: rec.title, date: rec.date }, name: row.name || (isPhoto ? rec.title : file.name) });
+      const from = { recId: rec.id, title: rec.title, date: rec.date };
+      set(row.id, { file: { ...file }, from, name: nameFor(row, isPhoto ? fromLabel(from) : file.name) });
       setPicking(null);
     };
     const save = () => {
       if (rows.some(r => !r.file || !r.name.trim())) { setErr(isPhoto ? '每一筆都要有照片和照片名稱' : '每一筆都要有文件和名稱'); return; }
       actions.updateBilling(bill.id, { [isPhoto ? 'photos' : 'docs']: rows.map(r => ({ ...r, name: r.name.trim() })) },
-        `${isPhoto ? '記錄照片' : '記錄文件'}更新為 ${rows.length} ${isPhoto ? '張' : '份'}`);
+        `${isPhoto ? '請款照片' : '書審及材料測試文件'}更新為 ${rows.length} ${isPhoto ? '張' : '份'}`);
       onClose();
     };
 
+    // 照片先挑再上傳（按鈕排在「上傳」前面），文件是「上傳」在前
+    const pickBtn = r => html`<button class="btn btn-outline sm" onClick=${() => setPicking(r.id)}>${isPhoto ? '從已上傳的照片挑' : '從已上傳的文件挑'}</button>`;
+
     if (picking) {
       const row = rows.find(r => r.id === picking);
-      return html`<${Sheet} title=${isPhoto ? '從已上傳的照片挑一張' : '從書審及材料測試挑一份文件'} wide onClose=${() => setPicking(null)}>
+      return html`<${Sheet} title=${isPhoto ? '從已上傳的照片挑一張' : '從已上傳的文件挑一份'} wide onClose=${() => setPicking(null)}>
         <${Picker} kind=${kind} bill=${bill} data=${data} onPick=${(rec, file) => pick(row, rec, file)} />
         <button class="btn btn-outline btn-block" onClick=${() => setPicking(null)}>回上一步</button>
       <//>`;
     }
-    return html`<${Sheet} title=${isPhoto ? '編輯記錄照片' : '編輯記錄文件'} wide onClose=${onClose}>
+    return html`<${Sheet} title=${isPhoto ? '選擇請款照片' : '編輯書審及材料測試文件'} wide onClose=${onClose}>
       <p class="muted">${isPhoto
-        ? '一筆是一張照片加一個名稱。照片可以直接上傳，也可以從工地記錄、書審及材料測試挑。'
-        : '一筆是一份文件。可以直接上傳 PDF，也可以從書審及材料測試挑。'}</p>
+        ? '一筆是一張照片加一個名稱。照片可以從工地記錄、書審及材料測試挑（名稱會先帶入日期和項目），也可以直接上傳。'
+        : '一筆是一份文件。可以直接上傳 PDF，也可以從書審及材料測試、工地記錄挑。'}</p>
       ${rows.length === 0 && html`<div class="notice info">還沒有任何一筆，按下面的「新增一筆」開始</div>`}
       <ol class="entry-list">
         ${rows.map((r, i) => html`<li class="entry" key=${r.id}>
@@ -375,15 +441,16 @@
               : html`<div class="entry-doc"><${Icon} name="file" /><span>${r.file ? r.file.name : '未選文件'}</span></div>`}
           </div>
           <div class="entry-main">
-            <input class="input" aria-label=${`第 ${i + 1} 筆的名稱`} placeholder=${isPhoto ? '照片名稱，例如：一樓版灌漿' : '文件名稱'}
+            <input class="input" aria-label=${`第 ${i + 1} 筆的名稱`} placeholder=${isPhoto ? '照片名稱，例如：2026/07/08 一樓版灌漿' : '文件名稱'}
               value=${r.name} onInput=${e => set(r.id, { name: e.target.value })} />
-            <div class="entry-src">${r.from ? `來自：${ymd(r.from.date)} ${r.from.title}` : r.file ? '直接上傳' : ''}</div>
+            <div class="entry-src">${r.from ? `來自：${fromLabel(r.from)}` : r.file ? '直接上傳' : ''}</div>
             <div class="entry-actions">
+              ${isPhoto && pickBtn(r)}
               <label class="btn btn-outline sm pick-inline">
                 <input type="file" accept=${isPhoto ? 'image/*' : 'application/pdf,.pdf'} onChange=${e => { upload(r, e.target.files); e.target.value = ''; }} />
                 <${Icon} name="upload" size=${20} />上傳
               </label>
-              <button class="btn btn-outline sm" onClick=${() => setPicking(r.id)}>${isPhoto ? '從已上傳的照片挑' : '從書審及材料測試挑'}</button>
+              ${!isPhoto && pickBtn(r)}
               <button class="btn btn-outline sm danger" onClick=${() => setRows(rs => rs.filter(x => x.id !== r.id))}>移除</button>
             </div>
           </div>

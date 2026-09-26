@@ -293,6 +293,30 @@ tr.is-off td { color: var(--text-3); }
 .bill-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
 .bill-photo { display: grid; gap: 4px; margin: 0; }
 .bill-photo figcaption { color: var(--text-2); font-size: 15px; line-height: 1.4; }
+.bill-photo .cap-date { white-space: nowrap; }
+.bill-photo .cap-item { display: inline-block; }
+/* 請款列表：項目名稱底下列出檔案，一個檔案一顆小按鈕、排成一串，點了直接預覽 */
+.bill-name { font-weight: 700; }
+.bill-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; margin-top: 8px; }
+.file-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 34px;
+  padding: 0 12px 0 10px;
+  border: 1px solid var(--border-2);
+  border-radius: 9999px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  transition: border-color var(--ease), background-color var(--ease);
+}
+.file-chip:hover:not(:disabled) { border-color: var(--primary); background: var(--primary-soft); }
+.file-chip:disabled { color: var(--text-3); cursor: progress; }
+.file-chip .icon { flex: none; color: var(--text-3); }
+.file-chip span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bill-files-empty { margin-top: 4px; color: var(--text-3); font-size: 15px; }
 .merge-table th, .merge-table td { font-size: 15px; }
 .merge-sum { color: var(--text-2); font-weight: 500; }
 .entry-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }

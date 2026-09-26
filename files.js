@@ -6,7 +6,7 @@
   const PR = window.PR;
   if (!PR || PR.bootFailed) return;
 
-  const { uid, fmtSize, ymd, photoName, MAX_PHOTOS, MAX_PDF_BYTES } = PR;
+  const { uid, fmtSize, photoName, fromLabel, MAX_PHOTOS, MAX_PDF_BYTES } = PR;
 
   const LIBS = {
     pdf: { url: 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js', global: 'PDFLib' },
@@ -383,17 +383,19 @@
   }
 
   /**
-   * 請款的記錄照片列印：A4 一頁兩張，照片下面印名稱與來源。
+   * 請款照片列印：A4 一頁兩張，照片下面印名稱與來源。
    * @param {string} title 請款項目名稱
    * @param {Array<{ name: string, file: Object, from?: Object }>} entries
    * @returns {Promise<{ blob: Blob, pages: number }>}
    */
   async function photosPdf(title, entries) {
     const { PDFDocument, rgb, StandardFonts } = await ensureLib('pdf');
+    const heading = `${title}｜請款照片`;
     const doc = await PDFDocument.create();
+    doc.setTitle(heading);
     const font = await doc.embedFont(StandardFonts.Helvetica);
     const pages = Math.ceil(entries.length / 2);
-    const head = await doc.embedPng(await textPng([{ text: `${title}｜記錄照片`, size: 26, color: '#475569' }], { width: 1030 }));
+    const head = await doc.embedPng(await textPng([{ text: heading, size: 26, color: '#475569' }], { width: 1030 }));
     const boxW = 515;
     const boxH = 300;
     for (let pi = 0; pi < pages; pi++) {
@@ -412,7 +414,7 @@
         page.drawImage(img, { x: 40 + (boxW - w) / 2, y: top - boxH + (boxH - h) / 2, width: w, height: h });
         const cap = await doc.embedPng(await textPng([
           { text: e.name, size: 30, weight: 700 },
-          e.from ? { text: `來自：${ymd(e.from.date)} ${e.from.title}`, size: 24, color: '#475569' } : null
+          e.from && e.name !== fromLabel(e.from) ? { text: `來自：${fromLabel(e.from)}`, size: 24, color: '#475569' } : null
         ], { width: 1030 }));
         const cp = cap.scale(0.5);
         page.drawImage(cap, { x: 40, y: top - boxH - 10 - cp.height, width: cp.width, height: cp.height });

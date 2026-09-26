@@ -72,6 +72,12 @@
   const siteSubName = d => `${ymd(d)}工地記錄`;
   // 請款項目名稱自動產生：「第3期請款：2026/08/01~2026/08/31」
   const billingName = b => `第${b.no}期請款：${ymd(b.from)}~${ymd(b.to)}`;
+  /**
+   * 請款裡從記錄挑來的照片或文件出自哪一筆：「日期 項目」，例如「2026/07/08 一樓版灌漿」。挑照片時也當預設名稱。
+   * @param {{ date: string, title: string }} from
+   * @returns {string}
+   */
+  const fromLabel = from => `${ymd(from.date)} ${from.title}`;
 
   // ---------- 帳號與分類 ----------
   let USERS = D.users.map(u => ({ ...u }));
@@ -418,7 +424,7 @@
 
   // ---------- 預覽彈窗（照片、PDF） ----------
   /**
-   * 照片預覽。gallery 是一筆記錄，或請款的記錄照片：{ title, photos, uploaderId?, uploadedAt? }
+   * 照片預覽。gallery 是一筆記錄，或請款照片：{ title, photos, uploaderId?, uploadedAt? }
    */
   function Lightbox({ gallery, index, onIndex, onClose, toast }) {
     useBodyLock();
@@ -1156,7 +1162,7 @@
 
   Object.assign(PR, {
     html, D, APP_NAME, NOW, nowIso, MAX_PHOTOS, MAX_PDF_BYTES, RECENT_KEYWORDS, GUEST, DEFAULT_FILTERS, LOG_ACTIONS, ROLES, ROLE_IDS, STATUS,
-    pad, uid, toggle, fmtSize, ymd, dt, isoDate, monthLabel, addDays, today, recentDays, siteSubName, billingName,
+    pad, uid, toggle, fmtSize, ymd, dt, isoDate, monthLabel, addDays, today, recentDays, siteSubName, billingName, fromLabel,
     syncUsers, userById, catById, subList, subLabel, roleName,
     isAdmin, canUpload, canUploadCat, canUploadPdf, canToggleStatus, canManageSubcats, canEditSiteNote, canBilling,
     editLeftHours, canEdit, canDelete, canEditFiles, canUpdateDoc, leftText, editNote,

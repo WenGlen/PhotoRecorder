@@ -145,9 +145,10 @@ window.DEMO = (() => {
   // 請款：獨立的資料，不跟上面的記錄共用；照片、文件是從記錄挑過來的（存一份當時的副本）
   const findRec = id => records.find(r => r.id === id);
   const fromOf = r => ({ recId: r.id, title: r.title, date: r.date });
+  // 照片名稱跟系統預設一樣是「日期 項目」；第三個參數可以換掉項目那段
   const pickPhoto = (recId, n, name) => {
     const r = findRec(recId);
-    return { id: `bp-${recId}-${n}`, name, file: { ...r.photos[n - 1] }, from: fromOf(r) };
+    return { id: `bp-${recId}-${n}`, name: `${r.date.replace(/-/g, '/')} ${name || r.title}`, file: { ...r.photos[n - 1] }, from: fromOf(r) };
   };
   const pickDoc = (recId, n) => {
     const r = findRec(recId);
@@ -158,26 +159,32 @@ window.DEMO = (() => {
     {
       id: 'b1', no: 1, from: '2026-03-15', to: '2026-05-31', createdBy: 'u2', createdAt: '2026-06-02T10:00:00+08:00',
       merged: { id: 'b1-m', name: '第1期整合施工日誌.pdf', size: '13.0MB', pages: 67, sources: ['r40-d1', 'r41-d1', 'r42-d1'], uploaderId: 'u2', uploadedAt: '2026-06-02T10:05:00+08:00' },
-      photos: [pickPhoto('r06', 2, '放樣完成'), pickPhoto('r07', 5, '基地開挖'), pickPhoto('r08', 3, '基礎鋼筋查驗'), pickPhoto('r09', 7, '基礎灌漿')],
+      photos: [pickPhoto('r06', 2, '放樣完成'), pickPhoto('r07', 5), pickPhoto('r08', 3), pickPhoto('r09', 7)],
       docs: [pickDoc('r20', 1), pickDoc('r21', 1), pickDoc('r31', 1)],
-      quotes: [pdf('第1期估價單.pdf', '0.9MB', 5, { id: 'b1-q1', uploaderId: 'u2', uploadedAt: '2026-06-02T10:10:00+08:00' })]
+      quotes: [pdf('第1期估價單.pdf', '0.9MB', 5, { id: 'b1-q1', uploaderId: 'u2', uploadedAt: '2026-06-02T10:10:00+08:00' })],
+      others: [pdf('第1期請款函.pdf', '0.2MB', 1, { id: 'b1-o1', uploaderId: 'u2', uploadedAt: '2026-06-02T10:12:00+08:00' })]
     },
     {
       id: 'b2', no: 2, from: '2026-06-01', to: '2026-07-31', createdBy: 'u2', createdAt: '2026-08-02T09:00:00+08:00',
       merged: { id: 'b2-m', name: '第2期整合施工日誌.pdf', size: '10.5MB', pages: 57, sources: ['r43-d1', 'r44-d1'], uploaderId: 'u2', uploadedAt: '2026-08-02T09:05:00+08:00' },
-      photos: [pickPhoto('r10', 4, '一樓版灌漿'), pickPhoto('r10', 12, '一樓版灌漿完成面')],
+      photos: [pickPhoto('r10', 4), pickPhoto('r10', 12, '一樓版灌漿完成面')],
       docs: [pickDoc('r32', 1)],
-      quotes: [pdf('第2期估價單.pdf', '1.0MB', 5, { id: 'b2-q1', uploaderId: 'u2', uploadedAt: '2026-08-02T09:10:00+08:00' })]
+      quotes: [pdf('第2期估價單.pdf', '1.0MB', 5, { id: 'b2-q1', uploaderId: 'u2', uploadedAt: '2026-08-02T09:10:00+08:00' })],
+      others: [
+        pdf('第2期請款函.pdf', '0.2MB', 1, { id: 'b2-o1', uploaderId: 'u2', uploadedAt: '2026-08-02T09:12:00+08:00' }),
+        pdf('工程保險單.pdf', '0.6MB', 3, { id: 'b2-o2', uploaderId: 'u2', uploadedAt: '2026-08-02T09:14:00+08:00' })
+      ]
     },
     {
       id: 'b3', no: 3, from: '2026-08-01', to: '2026-08-31', createdBy: 'u2', createdAt: '2026-09-10T17:05:00+08:00',
       merged: null,
-      photos: [pickPhoto('r11', 3, '二樓版灌漿')],
+      photos: [pickPhoto('r11', 3)],
       docs: [],
-      quotes: [pdf('第3期估價單.pdf', '1.1MB', 5, { id: 'b3-q1', uploaderId: 'u2', uploadedAt: '2026-09-10T17:05:00+08:00' })]
+      quotes: [pdf('第3期估價單.pdf', '1.1MB', 5, { id: 'b3-q1', uploaderId: 'u2', uploadedAt: '2026-09-10T17:05:00+08:00' })],
+      others: []
     },
     // 九月這期還沒整合：按「整合施工日誌」會列出九月每個工作天的施工日誌
-    { id: 'b4', no: 4, from: '2026-09-01', to: '2026-09-30', createdBy: 'u2', createdAt: '2026-09-24T17:40:00+08:00', merged: null, photos: [], docs: [], quotes: [] }
+    { id: 'b4', no: 4, from: '2026-09-01', to: '2026-09-30', createdBy: 'u2', createdAt: '2026-09-24T17:40:00+08:00', merged: null, quotes: [], photos: [], docs: [], others: [] }
   ];
 
   // 帳號異動（進操作記錄）
