@@ -29,7 +29,7 @@
 
   const ROLES = {
     admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有記錄，也能解鎖已完成的請款；後台要知道網址才進得去' },
-    architect: { name: '建築師事務所', desc: '可以傳工地記錄、活動記錄，切換書審狀態，管理子分類' },
+    architect: { name: '建築師事務所', desc: '可以傳工地記錄、書審及材料測試、活動記錄，切換書審狀態，管理子分類' },
     contractor: { name: '承包商', desc: '可以傳工地記錄、書審及材料測試、活動記錄，建立請款；一週內可以改或刪自己傳的' },
     amis: { name: '阿美中會', desc: '全部都能看；只能傳工地記錄的照片，不能傳文件' }
   };
@@ -956,10 +956,6 @@
   }
 
   /** 這個身分不能選的分類，說明誰才能傳 */
-  const blockedCatHints = user => D.categories
-    .filter(c => !c.roles.includes(user.role))
-    .map(c => `「${c.name}」只有${c.roles.map(roleName).join('、')}能上傳`);
-
   /**
    * 已選的檔案。能傳工地記錄的帳號，在還沒選分類或選了工地記錄時，PDF 列右邊有「施工日誌」勾選
    * （手機版選檔在選分類之前，所以先顯示；最後選了別的分類，勾選不會生效）。
@@ -1172,7 +1168,7 @@
     Icon, Photo, TopBar, useBodyLock, useEscape, Sheet, DemoBar, DisabledScreen, LoginScreen, Lightbox, PdfViewer,
     StatusBlock, DocList, DateRange,
     validate, Fields, editFormOf, buildEditPatch, EditFiles, toPhoto, toPdf,
-    useUploadDraft, blockedCatHints, SelectedFiles, UploadProgress,
+    useUploadDraft, SelectedFiles, UploadProgress,
     SiteNote, ShareSheet, DeleteSheet, PurgeSheet, AddAccountSheet, DemoSheet
   });
 })();

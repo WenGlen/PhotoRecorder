@@ -11,7 +11,7 @@
     isAdmin, canUpload, canUploadPdf, canEdit, canDelete, canEditFiles, editLeftHours, leftText, editNote,
     countText, byLine, filtersActive, filterRecords, groupFor, groupCount, useGroupOpen,
     Icon, Photo, TopBar, Sheet, StatusBlock, DocList, DateRange, SiteNote,
-    Fields, EditFiles, editFormOf, buildEditPatch, useUploadDraft, blockedCatHints, SelectedFiles, UploadProgress
+    Fields, EditFiles, editFormOf, buildEditPatch, useUploadDraft, SelectedFiles, UploadProgress
   } = PR;
 
   // ---------- 首頁 ----------
@@ -303,7 +303,6 @@
             <strong>${c.name}</strong><span class="muted">${c.desc}</span>
           </button>`)}
         </div>
-        ${blockedCatHints(user).map(t => html`<p class="muted">${t}。</p>`)}
       </div>`;
     } else {
       top = html`<${TopBar} title="上傳" onBack=${prev} backLabel="上一步" right=${closeBtn} />`;

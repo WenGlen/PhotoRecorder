@@ -11,7 +11,7 @@
     isAdmin, canUpload, canUploadPdf, canManageSubcats, canEdit, canDelete, canEditFiles,
     countText, byLine, filtersActive, filterRecords, recentKeywords, groupFor, groupCount, useGroupOpen,
     Icon, Photo, StatusBlock, DocList, DateRange, SiteNote,
-    Fields, EditFiles, editFormOf, buildEditPatch, useUploadDraft, blockedCatHints, SelectedFiles, UploadProgress
+    Fields, EditFiles, editFormOf, buildEditPatch, useUploadDraft, SelectedFiles, UploadProgress
   } = PR;
 
   const rowKeys = onSelect => e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } };
@@ -523,7 +523,6 @@
               ${d.cats.map(c => html`<button class=${'tag' + (d.catId === c.id ? ' on' : '')} aria-pressed=${d.catId === c.id}
                 onClick=${() => d.setCatId(c.id)}>${c.name}</button>`)}
             </div>
-            ${blockedCatHints(user).map(t => html`<div class="hint">${t}</div>`)}
           </div>
           <${Fields} form=${d.form} setForm=${d.setForm} catId=${d.catId} user=${user} data=${data} />
           ${d.err && html`<div class="notice error">${d.err}</div>`}

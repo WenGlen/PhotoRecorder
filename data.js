@@ -45,7 +45,7 @@ window.DEMO = (() => {
   // roles：能上傳這一類的身分；subKind：day＝日期子分類（工地記錄），list＝自訂子分類；status：有書審狀態
   const categories = [
     { id: 'site', name: '工地記錄', short: '工地記錄', roles: ['admin', 'architect', 'contractor', 'amis'], subKind: 'day', desc: '施工照片、施工日誌，依日期分子分類' },
-    { id: 'review', name: '書審及材料測試', short: '書審及材料測試', roles: ['admin', 'contractor'], subKind: 'list', status: true, desc: '材料送審、試驗報告等，由建築師事務所審查' },
+    { id: 'review', name: '書審及材料測試', short: '書審及材料測試', roles: ['admin', 'architect', 'contractor'], subKind: 'list', status: true, desc: '材料送審、試驗報告等，由建築師事務所審查' },
     { id: 'event', name: '活動記錄', short: '活動記錄', roles: ['admin', 'architect', 'contractor'], subKind: 'list', desc: '動土、上樑、感恩禮拜等活動' },
     { id: 'basic', name: '案件基本資料', short: '基本資料', roles: ['admin'], desc: '契約、建照、設計圖說' }
   ];

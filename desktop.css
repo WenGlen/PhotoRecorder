@@ -94,9 +94,10 @@
 .d-page > .d-filter-row { margin-bottom: 16px; }
 /* 文字搜尋放在篩選列最左邊；已加入的關鍵字篩選另起第二排 */
 .d-search { flex: 1 1 200px; max-width: 360px; }
-/* 側窗打開時列表只剩一半寬：日期區間自己排一行，兩格日期平分寬度，不會被切掉 */
-.has-detail .date-range.sm { flex: 1 1 100%; min-width: 0; }
-.has-detail .date-range.sm .input { flex: 1 1 0; width: auto; min-width: 0; }
+/* 側窗打開時列表只剩一半寬：文字搜尋、日期區間、關鍵字仍排同一行——日期欄縮窄，搜尋框吃剩下的寬度；
+   列表真的放不下時（大約 1500px 以下的螢幕）才把關鍵字換到下一行 */
+.has-detail .d-search { flex: 1 1 0; min-width: 86px; }
+.has-detail .date-range.sm .input { width: 120px; padding: 0 6px 0 10px; font-size: 15px; }
 .d-filter-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .d-filter-label { color: var(--text-3); font-size: 16px; }
 .d-search .icon { left: 12px; }
