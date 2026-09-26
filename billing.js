@@ -1,5 +1,5 @@
 /* 阿美中會工地記錄平台 Demo：請款（獨立的資料，不跟其他記錄共用；只有項目，沒有大分類、子分類）
-   每一期包含：整合施工日誌、估價單、請款照片、書審及材料測試、其他文件 */
+   每一期包含：估價單、整合施工日誌、請款照片、書審及材料測試、其他文件 */
 (function () {
   'use strict';
 
@@ -8,7 +8,7 @@
 
   const { useState } = window.preactHooks;
   const {
-    html, uid, fmtSize, nowIso, ymd, dt, addDays, today, userById, catById, billingName, canBilling, docMeta, byDateDesc,
+    html, uid, fmtSize, nowIso, ymd, dt, addDays, today, userById, catById, billingName, isAdmin, canBilling, docMeta, byDateDesc,
     toPhoto, toPdf, fromLabel, Icon, Photo, Sheet
   } = PR;
 
@@ -58,7 +58,7 @@
 
   /**
    * 請款項目底下的檔案：一個檔案一顆小按鈕，排成一串（不分種類換行），點了直接預覽。
-   * 順序：整合施工日誌 → 估價單 → 請款照片（整份 PDF，點了才產生）→ 書審及材料測試 → 其他文件。
+   * 順序：估價單 → 整合施工日誌 → 請款照片（整份 PDF，點了才產生）→ 書審及材料測試 → 其他文件。
    * 按鈕在可點選的列裡面，點按鈕只預覽，不會順便打開側窗。
    * @param {{ bill: Object, user: Object, actions: Object }} props
    */
@@ -75,8 +75,8 @@
     };
     const pdfItem = f => ({ key: f.id, name: f.name, open: () => actions.openPdf(f) });
     const items = [
-      ...(bill.merged ? [pdfItem(bill.merged)] : []),
       ...bill.quotes.map(pdfItem),
+      ...(bill.merged ? [pdfItem(bill.merged)] : []),
       ...(bill.photos.length ? [{ key: 'photos', name: making ? '正在產生請款照片…' : `第${bill.no}期請款照片.pdf`, open: openPhotos, busy: making }] : []),
       ...bill.docs.map(e => pdfItem(docFileOf(e))),
       ...bill.others.map(pdfItem)
@@ -100,7 +100,7 @@
       <section class="d-list-col">
         <div class="d-toolbar">
           <div class="d-page-head flush">
-            <h1 class="d-h1">請款記錄</h1>
+            <h1 class="d-h1">請款</h1>
             ${canBilling(user) && html`<button class="btn btn-primary" onClick=${() => setAdding(true)}><${Icon} name="plus" />新增請款項目</button>`}
           </div>
         </div>
@@ -113,7 +113,7 @@
                 ${list.map(b => html`<tr key=${b.id} class=${'d-row' + (sel && sel.id === b.id ? ' on' : '')} tabIndex="0"
                   aria-selected=${!!sel && sel.id === b.id} onClick=${() => select(b.id)} onKeyDown=${keys(b.id)}>
                   <td>
-                    <div class="bill-name">${billingName(b)}</div>
+                    <div class="bill-name">${billingName(b)}${b.done && html`<span class="st st-pass sm">請款完成</span>`}</div>
                     <${BillFiles} bill=${b} user=${user} actions=${actions} />
                   </td>
                 </tr>`)}
@@ -194,7 +194,9 @@
 
   // ---------- 一期請款的內容 ----------
   function BillingDetail({ bill, user, data, actions, onClose }) {
-    const can = canBilling(user);
+    const locked = !!bill.done;
+    // 請款完成後鎖定：不能再整合、選擇、上傳或修改，只有管理者可以解鎖
+    const can = canBilling(user) && !locked;
     const [sheet, setSheet] = useState(null);
     const [printing, setPrinting] = useState(false);
     const gallery = galleryOf(bill);
@@ -215,6 +217,15 @@
       actions.updateBilling(bill.id, { [key]: [...bill[key], ...items.map(i => toPdf(i, user.id, at))] },
         `上傳${label}：${items.map(i => i.name).join('、')}`);
       actions.toast(`已上傳 ${items.length} 份${label}`);
+    };
+    const complete = () => {
+      actions.updateBilling(bill.id, { done: { by: user.id, at: nowIso() } }, '請款完成（鎖定）');
+      actions.toast('已標記請款完成，這期已鎖定');
+      setSheet(null);
+    };
+    const unlock = () => {
+      actions.updateBilling(bill.id, { done: null }, '解鎖');
+      actions.toast('已解鎖，可以再修改');
     };
     const removeFile = (key, label) => f => actions.updateBilling(bill.id, { [key]: bill[key].filter(q => q.id !== f.id) }, `移除${label}「${f.name}」`);
     /** 估價單、其他文件：標題旁邊是「上傳」，每份可以移除 */
@@ -237,7 +248,18 @@
         <button class="icon-btn d-close" aria-label="關閉請款內容" onClick=${onClose}><${Icon} name="close" size=${28} /></button>
       </div>
       <h2 class="d-detail-title">${billingName(bill)}</h2>
-      ${can && html`<div class="d-actions"><button class="btn btn-outline sm" onClick=${() => setSheet('edit')}><${Icon} name="pencil" size=${20} />修改期別與日期</button></div>`}
+      ${locked
+        ? html`<div class="bill-lock">
+            <span class="st st-pass"><${Icon} name="lock" size=${16} />請款完成</span>
+            <span class="bill-lock-note">${userById(bill.done.by).name}｜${dt(bill.done.at)} 標記完成，已鎖定不能修改${isAdmin(user) ? '' : '；要修改請找管理者解鎖'}</span>
+            ${isAdmin(user) && html`<button class="btn btn-outline sm" onClick=${unlock}><${Icon} name="unlock" size=${20} />解鎖</button>`}
+          </div>`
+        : can && html`<div class="d-actions">
+            <button class="btn btn-outline sm" onClick=${() => setSheet('edit')}><${Icon} name="pencil" size=${20} />修改期別與日期</button>
+            <button class="btn btn-primary sm" onClick=${() => setSheet('done')}><${Icon} name="check" size=${20} />請款完成</button>
+          </div>`}
+
+      ${uploadSec('quotes', '估價單')}
 
       <section class="sec bill-sec">
         <div class="sec-head">
@@ -248,8 +270,6 @@
           ? html`<${FileRows} files=${[bill.merged]} actions=${actions} />`
           : html`<p class="muted">還沒有整合</p>`}
       </section>
-
-      ${uploadSec('quotes', '估價單')}
 
       <section class="sec bill-sec">
         <div class="sec-head">
@@ -285,6 +305,11 @@
       ${sheet === 'edit' && html`<${BillingFormSheet} data=${data} bill=${bill} onClose=${() => setSheet(null)}
         onSave=${info => { actions.updateBilling(bill.id, info, `期別與日期改成「${billingName(info)}」`); setSheet(null); }} />`}
       ${sheet === 'merge' && html`<${MergeSheet} bill=${bill} data=${data} user=${user} actions=${actions} onClose=${() => setSheet(null)} />`}
+      ${sheet === 'done' && html`<${Sheet} title="確定請款完成？" onClose=${() => setSheet(null)}>
+        <p>「${billingName(bill)}」標記完成後會鎖定：不能再整合施工日誌、選擇或上傳檔案，也不能修改期別與日期。</p>
+        <p class="muted">${isAdmin(user) ? '之後可以按「解鎖」恢復修改。' : '之後要修改，需要請管理者解鎖。'}</p>
+        <button class="btn btn-primary btn-block btn-lg" onClick=${complete}>確定請款完成</button>
+      <//>`}
       ${(sheet === 'photo' || sheet === 'pdf') && html`<${EntrySheet} kind=${sheet} bill=${bill} data=${data} user=${user} actions=${actions}
         onClose=${() => setSheet(null)} />`}
     </div>`;
@@ -428,9 +453,7 @@
       <//>`;
     }
     return html`<${Sheet} title=${isPhoto ? '選擇請款照片' : '編輯書審及材料測試文件'} wide onClose=${onClose}>
-      <p class="muted">${isPhoto
-        ? '一筆是一張照片加一個名稱。照片可以從工地記錄、書審及材料測試挑（名稱會先帶入日期和項目），也可以直接上傳。'
-        : '一筆是一份文件。可以直接上傳 PDF，也可以從書審及材料測試、工地記錄挑。'}</p>
+      ${!isPhoto && html`<p class="muted">一筆是一份文件。可以直接上傳 PDF，也可以從書審及材料測試、工地記錄挑。</p>`}
       ${rows.length === 0 && html`<div class="notice info">還沒有任何一筆，按下面的「新增一筆」開始</div>`}
       <ol class="entry-list">
         ${rows.map((r, i) => html`<li class="entry" key=${r.id}>

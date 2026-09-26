@@ -251,7 +251,7 @@
       },
       // ---------- 請款 ----------
       addBilling(info) {
-        const b = { id: uid('b'), ...info, createdBy: user.id, createdAt: nowIso(), merged: null, quotes: [], photos: [], docs: [], others: [] };
+        const b = { id: uid('b'), ...info, createdBy: user.id, createdAt: nowIso(), merged: null, quotes: [], photos: [], docs: [], others: [], done: null };
         setData(d => ({ ...d, billing: [...d.billing, b], log: [logEntry(user.id, '請款', billingName(b), '建立請款項目'), ...d.log] }));
         toast(`已建立「${billingName(b)}」`);
         return b.id;

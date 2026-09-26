@@ -24,7 +24,7 @@
   width: 200px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 40px;
   padding: 16px 12px;
   border-right: 1px solid var(--border);
   background: var(--page);
@@ -43,12 +43,12 @@
 }
 .d-nav-item:hover { background: var(--surface); color: var(--text); }
 .d-nav-item.on { background: var(--primary-soft-2); color: var(--primary-ink); font-weight: 700; }
+/* 選單分三段（上傳、記錄、子分類管理），記錄和子分類管理有段落標題，段落之間用較大的間距分開 */
+.d-nav-sec { display: flex; flex-direction: column; gap: 4px; }
 .d-nav-group { margin: 0 0 4px; padding: 0 12px; color: var(--text-3); font-size: 14px; font-weight: 500; letter-spacing: 0.08em; }
 /* 上傳：選單最上面的主色大按鈕 */
-.d-upload { min-height: 52px; margin-bottom: 12px; border-radius: var(--radius-lg); font-weight: 700; box-shadow: var(--shadow-sm); }
+.d-upload { min-height: 52px; border-radius: var(--radius-lg); font-weight: 700; box-shadow: var(--shadow-sm); }
 .d-upload.on { box-shadow: 0 0 0 3px var(--primary-soft-2); }
-/* 管理功能推到選單底部，用分隔線和一般記錄分開 */
-.d-nav-manage { display: flex; flex-direction: column; gap: 4px; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
 .d-main { flex: 1; min-width: 0; display: flex; }
 
 .d-page { flex: 1; min-width: 0; overflow: auto; padding: 24px 32px 40px; }
@@ -297,6 +297,11 @@ tr.is-off td { color: var(--text-3); }
 .bill-photo .cap-item { display: inline-block; }
 /* 請款列表：項目名稱底下列出檔案，一個檔案一顆小按鈕、排成一串，點了直接預覽 */
 .bill-name { font-weight: 700; }
+.bill-name .st { margin-left: 8px; vertical-align: 1px; }
+/* 請款完成：鎖定中的標示，管理者旁邊有「解鎖」 */
+.bill-lock { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px 16px; border-radius: var(--radius-lg); background: var(--pass-bg); }
+.bill-lock .st { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); }
+.bill-lock-note { flex: 1 1 200px; color: var(--pass-fg); font-size: 16px; }
 .bill-chips { display: flex; flex-wrap: wrap; gap: 6px; min-width: 0; margin-top: 8px; }
 .file-chip {
   display: inline-flex;

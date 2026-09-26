@@ -158,6 +158,7 @@ window.DEMO = (() => {
   const billing = [
     {
       id: 'b1', no: 1, from: '2026-03-15', to: '2026-05-31', createdBy: 'u2', createdAt: '2026-06-02T10:00:00+08:00',
+      done: { by: 'u2', at: '2026-06-05T16:00:00+08:00' },
       merged: { id: 'b1-m', name: '第1期整合施工日誌.pdf', size: '13.0MB', pages: 67, sources: ['r40-d1', 'r41-d1', 'r42-d1'], uploaderId: 'u2', uploadedAt: '2026-06-02T10:05:00+08:00' },
       photos: [pickPhoto('r06', 2, '放樣完成'), pickPhoto('r07', 5), pickPhoto('r08', 3), pickPhoto('r09', 7)],
       docs: [pickDoc('r20', 1), pickDoc('r21', 1), pickDoc('r31', 1)],
@@ -166,6 +167,7 @@ window.DEMO = (() => {
     },
     {
       id: 'b2', no: 2, from: '2026-06-01', to: '2026-07-31', createdBy: 'u2', createdAt: '2026-08-02T09:00:00+08:00',
+      done: { by: 'u2', at: '2026-08-06T15:30:00+08:00' },
       merged: { id: 'b2-m', name: '第2期整合施工日誌.pdf', size: '10.5MB', pages: 57, sources: ['r43-d1', 'r44-d1'], uploaderId: 'u2', uploadedAt: '2026-08-02T09:05:00+08:00' },
       photos: [pickPhoto('r10', 4), pickPhoto('r10', 12, '一樓版灌漿完成面')],
       docs: [pickDoc('r32', 1)],
@@ -176,7 +178,7 @@ window.DEMO = (() => {
       ]
     },
     {
-      id: 'b3', no: 3, from: '2026-08-01', to: '2026-08-31', createdBy: 'u2', createdAt: '2026-09-10T17:05:00+08:00',
+      id: 'b3', no: 3, from: '2026-08-01', to: '2026-08-31', createdBy: 'u2', createdAt: '2026-09-10T17:05:00+08:00', done: null,
       merged: null,
       photos: [pickPhoto('r11', 3)],
       docs: [],
@@ -184,7 +186,7 @@ window.DEMO = (() => {
       others: []
     },
     // 九月這期還沒整合：按「整合施工日誌」會列出九月每個工作天的施工日誌
-    { id: 'b4', no: 4, from: '2026-09-01', to: '2026-09-30', createdBy: 'u2', createdAt: '2026-09-24T17:40:00+08:00', merged: null, quotes: [], photos: [], docs: [], others: [] }
+    { id: 'b4', no: 4, from: '2026-09-01', to: '2026-09-30', createdBy: 'u2', createdAt: '2026-09-24T17:40:00+08:00', done: null, merged: null, quotes: [], photos: [], docs: [], others: [] }
   ];
 
   // 帳號異動（進操作記錄）

@@ -16,12 +16,12 @@
 
   const rowKeys = onSelect => e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(); } };
 
-  // ---------- 外框：頂端列＋左側選單（上傳鈕在最上面，管理功能放底部） ----------
+  // ---------- 外框：頂端列＋左側選單（分三段：上傳、記錄、子分類管理） ----------
   function DesktopShell({ user, route, actions, children }) {
     const onRecords = ['home', 'record', 'edit'].includes(route.name);
     const nav = [
-      { label: '全部記錄', hash: '#/', on: onRecords },
-      { label: '請款記錄', hash: '#/billing', on: route.name === 'billing' }
+      { label: '記錄項目', hash: '#/', on: onRecords },
+      { label: '請款', hash: '#/billing', on: route.name === 'billing' }
     ];
     const manage = [
       { id: 'review', label: '書審及材料測試' },
@@ -36,11 +36,16 @@
       </header>
       <div class="d-body">
         <nav class="d-nav" aria-label="主選單">
-          ${canUpload(user) && html`<button class=${'btn btn-primary btn-block d-upload' + (route.name === 'upload' ? ' on' : '')}
-            aria-current=${route.name === 'upload' ? 'page' : undefined} onClick=${actions.startUpload}><${Icon} name="upload" />上傳</button>`}
-          ${nav.map(n => link(n.hash, n.label, n.on))}
-          ${canManageSubcats(user) && html`<div class="d-nav-manage">
-            <div class="d-nav-group">子分類</div>
+          ${canUpload(user) && html`<div class="d-nav-sec">
+            <button class=${'btn btn-primary btn-block d-upload' + (route.name === 'upload' ? ' on' : '')}
+              aria-current=${route.name === 'upload' ? 'page' : undefined} onClick=${actions.startUpload}><${Icon} name="upload" />上傳</button>
+          </div>`}
+          <div class="d-nav-sec">
+            <div class="d-nav-group">記錄</div>
+            ${nav.map(n => link(n.hash, n.label, n.on))}
+          </div>
+          ${canManageSubcats(user) && html`<div class="d-nav-sec">
+            <div class="d-nav-group">子分類管理</div>
             ${manage.map(n => link('#/settings/' + n.id, n.label, route.name === 'settings' && route.id === n.id))}
           </div>`}
         </nav>
@@ -49,7 +54,7 @@
     </div>`;
   }
 
-  // ---------- 全部記錄：可收合的分段 ----------
+  // ---------- 記錄項目：可收合的分段 ----------
   // 分段列：月份深色底、子分類淺灰底（kind 由分組時決定）；工地記錄的日期子分類，備註排同一行，按鉛筆直接在這裡改
   function GroupRow({ g, level, cols, open, onToggle, user, note }) {
     return html`<tr class=${`d-group-row lv${level} kind-${g.kind}`}>

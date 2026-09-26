@@ -28,7 +28,7 @@
   const LOG_ACTIONS = ['上傳', '修改', '更新文件', '書審狀態', '子分類備註', '請款', '刪除', '救回', '永久刪除', '帳號', '設定'];
 
   const ROLES = {
-    admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有記錄；後台要知道網址才進得去' },
+    admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有記錄，也能解鎖已完成的請款；後台要知道網址才進得去' },
     architect: { name: '建築師事務所', desc: '可以傳工地記錄、活動記錄，切換書審狀態，管理子分類' },
     contractor: { name: '承包商', desc: '可以傳工地記錄、書審及材料測試、活動記錄，建立請款；一週內可以改或刪自己傳的' },
     amis: { name: '阿美中會', desc: '全部都能看；只能傳工地記錄的照片，不能傳文件' }
@@ -286,6 +286,7 @@
     data.billing.forEach(b => {
       push(b.createdAt, b.createdBy, '請款', billingName(b), '建立請款項目');
       if (b.merged) push(b.merged.uploadedAt, b.merged.uploaderId, '請款', billingName(b), `整合施工日誌（${b.merged.pages} 頁）`);
+      if (b.done) push(b.done.at, b.done.by, '請款', billingName(b), '請款完成（鎖定）');
     });
     data.deleted.forEach(r => {
       push(r.uploadedAt, r.uploaderId, '上傳', r.title, uploadDetail(r));
@@ -326,7 +327,9 @@
     upload: () => html`<path d="M12 20V9M7 14l5-5 5 5M5 4h14" />`,
     refresh: () => html`<path d="M21 4v6h-6" /><path d="M19.5 15a8 8 0 1 1-1.9-8.3L21 10" />`,
     pencil: () => html`<path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" />`,
-    printer: () => html`<path d="M7 8V3h10v5" /><rect x="3" y="8" width="18" height="9" rx="2" /><path d="M7 14h10v7H7z" />`
+    printer: () => html`<path d="M7 8V3h10v5" /><rect x="3" y="8" width="18" height="9" rx="2" /><path d="M7 14h10v7H7z" />`,
+    lock: () => html`<rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" />`,
+    unlock: () => html`<rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 7.5-1.9" />`
   };
   function Icon({ name, size = 24, stroke = 2 }) {
     return html`<svg class="icon" width=${size} height=${size} viewBox="0 0 24 24" fill="none" stroke="currentColor"
