@@ -1,4 +1,4 @@
-/* 阿美中會工地紀錄平台 Demo — 視覺第二版：安靜的石板灰＋沉穩藍
+/* 阿美中會工地記錄平台 Demo — 視覺第二版：安靜的石板灰＋沉穩藍
    原則：用字級和留白分層，不用粗框；只有主要動作用實心色；狀態標籤用淡底色
    色值：Tailwind 預設色票（slate / sky / red / green / orange / amber）
    配色方向參考 ui-ux-pro-max 對營建類工具的建議（石板灰中性色＋單一強調色）
@@ -27,6 +27,9 @@
   --pending-bg: #f0f9ff;  --pending-fg: #075985; --pending-bd: #bae6fd;
   --reject-bg: #fef2f2;   --reject-fg: #b91c1c;  --reject-bd: #fecaca;
   --pass-bg: #f0fdf4;     --pass-fg: #15803d;    --pass-bd: #bbf7d0;
+
+  --group-month: #334155; /* slate-700：月份分段 */
+  --group-sub: #edf1f5;   /* 子分類分段：比 slate-100 深一點，在淺底頁面上也看得出來 */
 
   --warn-bg: #fffbeb;     --warn-fg: #92400e;
   --error-bg: #fef2f2;    --error-fg: #b91c1c;
@@ -239,6 +242,30 @@ input[type="checkbox"] { accent-color: var(--primary); }
 
 .m-sec { display: grid; gap: 12px; padding: 24px 16px 0; }
 .m-sec-title { font-size: 20px; font-weight: 700; }
+/* 分類分頁：跟桌機一樣是底線式，放不下就左右滑（貼齊螢幕兩側，不換行） */
+.m-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 -16px;
+  padding: 0 16px;
+  overflow-x: auto;
+  scroll-padding-inline: 16px;
+  border-bottom: 1px solid var(--border);
+  scrollbar-width: none;
+}
+.m-tabs::-webkit-scrollbar { display: none; }
+.m-tab {
+  flex: none;
+  min-height: 48px;
+  padding: 0 12px;
+  border: none;
+  background: none;
+  color: var(--text-2);
+  font-size: 18px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.m-tab.on { color: var(--primary-ink); font-weight: 700; box-shadow: inset 0 -2px 0 var(--primary); }
 .mine-list { display: grid; gap: 8px; }
 .mine-row {
   display: grid;
@@ -286,18 +313,58 @@ input[type="checkbox"] { accent-color: var(--primary); }
 .search input::placeholder { color: var(--text-3); }
 .search input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft-2); }
 
-/* 分段標題：只有文件書審、材料測試報告（子分類）和請款（期別）會分段 */
-.group-title {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: 16px 16px 4px;
-  background: var(--bg);
-  color: var(--text-2);
+/* 可收合的分段：工地記錄是月份→日期兩層，書審及材料測試、活動記錄依子分類
+   月份是深色底白字，子分類（包含工地記錄的日期）是淺灰底 */
+.group-head { margin: 8px 16px 0; padding: 0 4px; border-radius: var(--radius); }
+.group-head.lv1 { margin-left: 32px; }
+.group-head.kind-month { background: var(--group-month); }
+.group-head.kind-sub { background: var(--group-sub); }
+.kind-month .grp-toggle, .kind-month .grp-edit { color: #ffffff; }
+.kind-month .grp-toggle .icon, .kind-month .grp-n, .kind-month .d-group-n { color: #cbd5e1; }
+.kind-month .grp-toggle:hover, .kind-month .grp-edit:hover { background: rgba(255, 255, 255, 0.12); color: #ffffff; }
+.kind-sub .grp-toggle:hover { background: rgba(15, 23, 42, 0.06); }
+.grp-line { display: flex; align-items: center; gap: 4px; }
+.grp-toggle {
+  flex: 0 0 auto;
+  max-width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 0 8px 0 4px;
+  border: none;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
   font-size: 18px;
   font-weight: 700;
+  text-align: left;
+  transition: background-color var(--ease);
 }
-.app.is-home .group-title { background: var(--page); }
+.grp-toggle:hover { background: var(--surface); }
+.grp-toggle .icon { color: var(--text-3); }
+.grp-label { min-width: 0; overflow-wrap: anywhere; }
+.grp-n { color: var(--text-3); font-size: 16px; font-weight: 400; white-space: nowrap; }
+.group-head.lv1 .grp-toggle { font-size: 17px; font-weight: 500; }
+.grp-edit { flex: none; width: 44px; height: 44px; margin-left: auto; }
+/* 日期子分類的備註：跟子分類名稱排同一行，太長就截斷（滑鼠移上去看全文）；
+   子分類名稱不壓縮（壓縮一點點就會斷行），空間不夠時只截斷備註 */
+.grp-note-inline { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--text-2); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
+/* 手機版寬度放不下同一行：備註排到子分類名稱下一行，還在同一個灰底裡，完整顯示 */
+.group-head .grp-line { flex-wrap: wrap; }
+.group-head .grp-edit { order: 2; }
+.group-head .grp-note-inline { order: 3; flex-basis: 100%; padding: 0 8px 10px 32px; white-space: normal; }
+/* 改備註：按鉛筆後原地換成輸入框和「儲存」「取消」（不跳彈窗） */
+.grp-note-edit { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.grp-note-edit .input { flex: 1 1 auto; min-width: 0; }
+.grp-note-edit .btn { flex: none; padding: 0 16px; }
+/* 手機：輸入框佔滿一整行，「儲存」「取消」排下一行平分寬度 */
+.group-head .grp-note-edit { order: 3; flex-basis: 100%; flex-wrap: wrap; padding: 0 4px 8px; }
+.group-head .grp-note-edit .input { flex-basis: 100%; }
+.group-head .grp-note-edit .btn { flex: 1 1 0; }
+.group-head .grp-note-edit .input, .group-head .grp-note-edit .btn { min-height: 44px; }
+.m-subgroup .list { padding-left: 32px; }
 .list { display: grid; gap: 12px; padding: 8px 16px 16px; }
 .pad-x { padding: 12px 16px 0; }
 .empty { display: grid; justify-items: center; gap: 12px; padding: 40px 16px; color: var(--text-2); text-align: center; }
@@ -365,7 +432,7 @@ input[type="checkbox"] { accent-color: var(--primary); }
 .stepper-item.done { color: var(--text-2); }
 .stepper-item.done .stepper-dot { background: var(--pass-bg); box-shadow: inset 0 0 0 1px var(--pass-bd); color: var(--success); }
 
-/* ---------- 紀錄卡片 ---------- */
+/* ---------- 記錄卡片 ---------- */
 .card {
   display: block;
   padding: 16px;
@@ -394,8 +461,22 @@ input[type="checkbox"] { accent-color: var(--primary); }
 .card-title { margin-top: 4px; font-size: 20px; font-weight: 700; line-height: 1.4; }
 .meta { color: var(--text-2); }
 .card-files { display: grid; gap: 4px; margin: 12px 0 4px; padding: 0; list-style: none; }
-.card-files li { display: flex; align-items: center; gap: 8px; color: var(--text-2); word-break: break-all; }
+.card-files li { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; color: var(--text-2); word-break: break-all; }
 .card-files .icon { color: var(--text-3); }
+.card-note { margin: 8px 0 4px; padding: 8px 12px; border-radius: var(--radius); background: var(--page); color: var(--text-2); font-size: 16px; line-height: 1.5; }
+.badge-diary {
+  display: inline-block;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: var(--warn-bg);
+  box-shadow: inset 0 0 0 1px #fde68a;
+  color: var(--warn-fg);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 24px;
+  white-space: nowrap;
+  vertical-align: middle;
+}
 
 .thumbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin: 12px 0 8px; }
 .thumb {
@@ -499,9 +580,25 @@ button.file-row:hover { background: var(--page); border-color: var(--border-2); 
 .file-row > .icon { grid-row: span 2; color: var(--text-3); }
 .file-name { font-weight: 500; word-break: break-all; }
 .file-meta { grid-column: 2; color: var(--text-3); }
-.file-row .file-remove { grid-row: span 2; grid-column: 3; }
+.file-row .file-remove { grid-row: 1 / span 2; grid-column: 3; }
+/* 工地記錄的 PDF：施工日誌勾選放在同一列的右邊，移除鈕之前 */
+.file-row.has-diary { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+.file-row.has-diary .file-remove { grid-column: 4; }
+.diary-inline {
+  grid-row: 1 / span 2;
+  grid-column: 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  color: var(--text-2);
+  font-size: 16px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.diary-inline input { width: 20px; height: 20px; margin: 0; }
 
-/* 紀錄裡的 PDF：上面是可以點開預覽的列，下面是下載／更新 */
+/* 記錄裡的 PDF：上面是可以點開預覽的列，下面是下載／更新 */
 .doc { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); overflow: hidden; }
 .doc .file-row { grid-template-columns: auto 1fr; border: none; border-radius: 0; }
 .doc-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0 12px 12px; }
@@ -546,6 +643,42 @@ button.file-row:hover { background: var(--page); border-color: var(--border-2); 
 .modal-name { font-weight: 700; line-height: 1.4; word-break: break-all; }
 .modal-sub { color: var(--text-3); font-size: 16px; }
 .modal-foot { flex: none; display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; padding: 12px 20px calc(12px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); }
+.modal-actions { flex: none; }
+.modal-actions .btn { flex: none; }
+
+/* 下載模式：點照片或文件是勾選 */
+.thumb.picked { box-shadow: inset 0 0 0 3px var(--primary); }
+.pick-mark {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #ffffff;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.35);
+  color: #ffffff;
+}
+.thumb.picked .pick-mark { background: var(--primary); }
+.pick-box {
+  grid-row: span 2;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--field);
+  border-radius: var(--radius-sm);
+  color: #ffffff;
+}
+.doc.picked { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.doc.picked .pick-box { border-color: var(--primary); background: var(--primary); }
+
+/* 列印用的 iframe：不能 display:none，不然 PDF 檢視器不會載入 */
+.print-frame { position: fixed; right: 0; bottom: 0; width: 1px; height: 1px; border: 0; opacity: 0.01; pointer-events: none; }
 
 .lb-stage { position: relative; flex: 1; min-height: 0; background: #0f172a; }
 .lb-stage .lb-img, .lb-stage .ph-svg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
@@ -703,51 +836,24 @@ button.file-row:hover { background: var(--page); border-color: var(--border-2); 
 .readonly .hint { font-weight: 400; }
 .inline-add { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 
-/* 民國年日期欄：右邊的日曆鈕上面疊了一個透明的系統日期欄，點下去就是系統的日期選單 */
-.date-input { position: relative; }
-.date-input .input { padding-right: 60px; }
-.date-input .input[aria-invalid="true"] { border-color: var(--reject-fg); }
-.date-pick {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  bottom: 4px;
-  width: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--radius-sm);
-  color: var(--primary);
-  cursor: pointer;
-  transition: background-color var(--ease);
-}
-.date-pick:hover { background: var(--surface); }
-.date-pick input[type="date"] {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  opacity: 0;
-  cursor: pointer;
-  -webkit-appearance: none;
-  appearance: none;
-}
-.date-pick input[type="date"]::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; opacity: 0; cursor: pointer; }
-.date-input.sm .input { width: 152px; min-height: 44px; padding: 0 44px 0 12px; font-size: 16px; }
-.date-input.sm .date-pick { width: 36px; }
+/* 日期一律用瀏覽器內建的日期欄（西元，點一下就有日期選單） */
+input[type="date"].input { padding-right: 12px; font-variant-numeric: tabular-nums; }
+input[type="date"].input::-webkit-calendar-picker-indicator { cursor: pointer; }
 
 /* 日期區間：手機版上下兩格並排；桌機版（.sm）排成一行 */
-.date-range { display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 8px; }
+.date-range { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: end; gap: 8px; }
 .dr-end { display: grid; gap: 4px; min-width: 0; }
 .dr-label { color: var(--text-3); font-size: 16px; }
 .dr-sep { padding-bottom: 12px; color: var(--text-3); }
+.date-range.bare { align-items: center; }
+.date-range.bare .dr-sep { padding-bottom: 0; }
 .date-range.sm { display: flex; align-items: center; }
-.date-range.sm .dr-end { display: flex; align-items: center; gap: 8px; }
-.date-range.sm .dr-label:empty { display: none; }
+.date-range.sm .dr-label { flex: none; white-space: nowrap; }
 .date-range.sm .dr-sep { padding-bottom: 0; }
+.date-range.sm .input { width: 164px; min-height: 44px; padding: 0 8px 0 12px; font-size: 16px; }
+
+.inline-period { display: flex; align-items: center; gap: 8px; }
+.inline-period .input { width: 120px; }
 
 .notice { padding: 12px 16px; border-radius: var(--radius-lg); }
 .notice.warn { background: var(--warn-bg); color: var(--warn-fg); }
@@ -812,6 +918,7 @@ button.file-row:hover { background: var(--page); border-color: var(--border-2); 
 .cat-choice.on { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); background: var(--primary-soft); }
 
 .pick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pick-grid.two { grid-template-columns: repeat(2, 1fr); }
 .pick-btn {
   position: relative;
   display: flex;
@@ -849,18 +956,6 @@ button.file-row:hover { background: var(--page); border-color: var(--border-2); 
   border-radius: 9999px;
   background: rgba(15, 23, 42, 0.6);
   color: #ffffff;
-}
-.sel-date {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  padding: 0 4px;
-  background: rgba(15, 23, 42, 0.55);
-  color: #ffffff;
-  font-size: 16px;
-  line-height: 28px;
-  text-align: center;
 }
 
 .progress-num { font-size: 28px; font-weight: 700; line-height: 1.4; }

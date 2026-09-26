@@ -1,4 +1,4 @@
-/* 阿美中會工地紀錄平台 Demo：桌機版（寬度 1024px 以上，或在 Demo 設定強制切換）
+/* 阿美中會工地記錄平台 Demo：桌機版（寬度 1024px 以上，或在 Demo 設定強制切換）
    沿用 styles.css 的顏色 token；表格、工具列用 16px，其餘內文維持 18px */
 
 .d-app { display: flex; flex-direction: column; height: 100vh; min-width: 1024px; background: var(--bg); }
@@ -47,7 +47,7 @@
 /* 上傳：選單最上面的主色大按鈕 */
 .d-upload { min-height: 52px; margin-bottom: 12px; border-radius: var(--radius-lg); font-weight: 700; box-shadow: var(--shadow-sm); }
 .d-upload.on { box-shadow: 0 0 0 3px var(--primary-soft-2); }
-/* 管理功能推到選單底部，用分隔線和一般紀錄分開 */
+/* 管理功能推到選單底部，用分隔線和一般記錄分開 */
 .d-nav-manage { display: flex; flex-direction: column; gap: 4px; margin-top: auto; padding-top: 16px; border-top: 1px solid var(--border); }
 .d-main { flex: 1; min-width: 0; display: flex; }
 
@@ -56,13 +56,14 @@
 .d-page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
 .d-page-head .muted { max-width: 720px; margin-top: 4px; }
 .d-page-head .btn { min-height: 44px; font-size: 16px; }
+.d-page-head.flush { margin-bottom: 0; }
 .d-h1 { font-size: 24px; line-height: 1.4; }
-.d-list-col { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.d-list-col { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; }
 .d-toolbar { flex: none; display: grid; gap: 12px; padding: 16px 24px 12px; border-bottom: 1px solid var(--border); }
 .d-scroll { flex: 1; min-height: 0; overflow: auto; }
 
-/* 詳細面板只在選了某一筆時出現；沒選的時候表格佔滿寬度 */
-.d-detail-col { flex: none; width: clamp(360px, 28vw, 480px); border-left: 1px solid var(--border); background: var(--bg); overflow: auto; }
+/* 側窗只在選了某一筆時出現；沒選的時候表格佔滿寬度。側窗打開時跟列表平分寬度，表格收起「上傳者」「內容」兩欄 */
+.d-detail-col { flex: 1 1 0; min-width: 0; border-left: 1px solid var(--border); background: var(--bg); overflow: auto; }
 .d-detail { display: grid; gap: 16px; padding: 20px 24px 32px; }
 .d-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .d-close { width: 44px; height: 44px; margin: -8px -12px 0 0; }
@@ -84,11 +85,18 @@
 }
 .d-tab:hover { color: var(--text); }
 .d-tab.on { color: var(--primary-ink); font-weight: 700; box-shadow: inset 0 -2px 0 var(--primary); }
+.has-detail .d-tab { padding: 0 12px; }
 
+/* 搜尋與篩選包在獨立的框框裡，跟下面的列表分開 */
+.d-filter-box { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; padding: 12px 16px; border: 1px solid var(--border-2); border-radius: var(--radius-lg); background: var(--page); }
+.d-filter-box .select, .d-filter-box .input, .d-filter-box .search input { background: var(--bg); }
 .d-filter-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .d-page > .d-filter-row { margin-bottom: 16px; }
-/* 文字搜尋放在篩選列最左邊；已加入的關鍵字條件另起第二排 */
+/* 文字搜尋放在篩選列最左邊；已加入的關鍵字篩選另起第二排 */
 .d-search { flex: 1 1 200px; max-width: 360px; }
+/* 側窗打開時列表只剩一半寬：日期區間自己排一行，兩格日期平分寬度，不會被切掉 */
+.has-detail .date-range.sm { flex: 1 1 100%; min-width: 0; }
+.has-detail .date-range.sm .input { flex: 1 1 0; width: auto; min-width: 0; }
 .d-filter-tags { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .d-filter-label { color: var(--text-3); font-size: 16px; }
 .d-search .icon { left: 12px; }
@@ -96,9 +104,26 @@
 .d-seg { grid-template-columns: repeat(2, auto); }
 .d-seg button { min-height: 36px; padding: 0 16px; font-size: 16px; }
 .d-result-row { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; min-height: 36px; color: var(--text-3); font-size: 16px; }
+.d-filter-box .d-result-row { padding-top: 12px; border-top: 1px solid var(--border); }
 .d-result-row .link-btn { min-height: 36px; font-size: 16px; }
-.d-result-row .d-seg { margin-left: auto; }
-.d-batch { display: inline-flex; align-items: center; gap: 8px; color: var(--text); font-weight: 500; }
+.d-result-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.btn.sm.on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-ink); }
+/* 下載模式：跨項目勾選檔案，最後打包成一個 zip */
+.d-dlbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 8px 8px 16px;
+  border-radius: var(--radius-lg);
+  background: var(--primary-soft);
+  color: var(--primary-ink);
+  font-size: 16px;
+  font-weight: 500;
+}
+.d-dlbar-actions { display: flex; align-items: center; gap: 8px; }
+.badge-picked { padding: 0 8px; border-radius: 9999px; background: var(--primary); color: #ffffff; font-size: 14px; font-weight: 500; line-height: 24px; }
 
 .select.sm, .btn.sm { min-height: 44px; font-size: 16px; }
 .select.sm { width: auto; padding: 0 12px; border-color: var(--border-2); }
@@ -108,10 +133,9 @@
 .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .d-table { width: 100%; border-collapse: collapse; font-size: 16px; }
-/* 紀錄表格固定欄寬，名稱欄吃剩下的寬度，不會被長的上傳者文字擠窄 */
+/* 記錄表格固定欄寬，名稱欄吃剩下的寬度，不會被長的上傳者文字擠窄 */
 .d-table.fixed { table-layout: fixed; }
-.d-table.fixed .c-check { width: 52px; }
-.d-table.fixed .w-date { width: 112px; }
+.d-table.fixed .w-date { width: 124px; }
 .d-table.fixed .w-by { width: 200px; }
 .d-table.fixed .w-count { width: 120px; }
 .d-table th {
@@ -132,8 +156,33 @@
 .d-row:hover { background: var(--page); }
 .d-row.on { background: var(--primary-soft); }
 .d-row:focus-visible { outline-offset: -3px; }
-.d-group-row td { padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--page); color: var(--text-2); font-size: 16px; font-weight: 700; }
+/* 分段列可收合：月份／子分類一層，工地記錄的日期再一層；項目往右縮排 */
+.d-group-row td { padding: 4px 12px; border-bottom: 1px solid var(--border); background: var(--page); color: var(--text-2); }
+.d-group-row.lv1 td { padding-left: 32px; }
+.d-group-row .grp-toggle { min-height: 40px; font-size: 16px; }
+.d-group-row.lv1 .grp-toggle { font-weight: 500; }
+.d-group-row.kind-month td { border-bottom-color: var(--group-month); background: var(--group-month); }
+.d-group-row.kind-sub td { background: var(--group-sub); }
+.d-group-row .grp-edit { width: 40px; height: 40px; }
+.d-group-row .grp-note-edit .input, .d-group-row .grp-note-edit .btn,
+.d-wall-title .grp-note-edit .input, .d-wall-title .grp-note-edit .btn { min-height: 40px; font-size: 16px; }
+.d-group-row .grp-note-edit .btn, .d-wall-title .grp-note-edit .btn { padding: 0 14px; }
 .d-group-n { margin-left: 8px; color: var(--text-3); font-size: 14px; font-weight: 400; }
+.d-row.depth-1 > td:first-child { padding-left: 40px; }
+.d-row.depth-2 > td:first-child { padding-left: 64px; }
+.c-note { margin-top: 6px; color: var(--text-2); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+/* 關鍵字：小標籤排在名稱後面 */
+.kw {
+  display: inline-block;
+  padding: 0 8px;
+  border: 1px solid var(--border-2);
+  border-radius: 9999px;
+  background: var(--bg);
+  color: var(--text-2);
+  font-size: 13px;
+  line-height: 22px;
+  white-space: nowrap;
+}
 .c-check { width: 44px; }
 .c-check input, .check-inline input { width: 20px; height: 20px; }
 .c-title { font-weight: 500; }
@@ -157,9 +206,14 @@ tr.is-off td { color: var(--text-3); }
   line-height: 28px;
 }
 
-.d-wall { display: grid; gap: 24px; padding: 16px 24px 32px; }
-.d-wall-group { display: grid; gap: 12px; }
-.d-wall-title { color: var(--text-2); font-size: 18px; }
+.d-wall { display: grid; gap: 16px; padding: 16px 24px 32px; }
+.d-wall-group, .d-wall-sub { display: grid; gap: 12px; }
+.d-wall-title { display: flex; align-items: center; gap: 4px; padding: 0 4px; border-radius: var(--radius); color: var(--text-2); }
+.d-wall-title .grp-toggle { font-size: 17px; }
+.d-wall-title.kind-month { background: var(--group-month); }
+.d-wall-title.kind-sub { background: var(--group-sub); }
+.d-wall-title.lv1 { margin-left: 24px; }
+.d-wall-sub .d-wall-rec { margin-left: 24px; }
 .d-wall-rec { display: grid; gap: 8px; padding: 12px 16px 16px; border: 1px solid var(--border); border-radius: var(--radius-lg); }
 .d-wall-rec.on { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
 .d-wall-head {
@@ -204,26 +258,88 @@ tr.is-off td { color: var(--text-3); }
 .dropzone:hover, .dropzone.on { border-color: var(--primary); background: var(--primary-soft); }
 .dropzone input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 
-.d-period { display: grid; gap: 8px; padding: 16px 24px 8px; }
-.d-period-head { display: flex; align-items: baseline; gap: 12px; }
-.d-period-head h2 { font-size: 20px; }
-
 .tag-admin { display: grid; margin: 0; padding: 0; list-style: none; }
 .tag-admin li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); }
 .tag-admin li:last-child { border-bottom: none; }
 .tag-name { flex: 1; font-weight: 500; }
 .tag-use { display: block; color: var(--text-3); font-size: 14px; font-weight: 400; }
+.sub-rename { flex: 1; min-height: 44px; font-size: 16px; }
+/* 不能刪的子分類：移上去（或用鍵盤移到）按鈕，顯示為什麼不能刪 */
+.tip { position: relative; display: inline-flex; border-radius: var(--radius); }
+.tip > button:disabled { pointer-events: none; }
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 8px);
+  z-index: 5;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--text);
+  color: #ffffff;
+  font-size: 14px;
+  line-height: 1.4;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(4px);
+  transition: opacity var(--ease), transform var(--ease);
+}
+.tip:hover::after, .tip:focus-visible::after { opacity: 1; transform: none; }
 
-/* 桌機版的面板改成畫面中間的對話框 */
+/* ---------- 請款 ---------- */
+.bill-sec { padding-top: 16px; border-top: 1px solid var(--border); }
+.sec-tools { display: flex; flex-wrap: wrap; gap: 8px; }
+.bill-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
+.bill-photo { display: grid; gap: 4px; margin: 0; }
+.bill-photo figcaption { color: var(--text-2); font-size: 15px; line-height: 1.4; }
+.merge-table th, .merge-table td { font-size: 15px; }
+.merge-sum { color: var(--text-2); font-weight: 500; }
+.entry-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.entry {
+  display: grid;
+  grid-template-columns: 28px 136px minmax(0, 1fr);
+  align-items: start;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+.entry-no { color: var(--text-3); font-weight: 700; line-height: 44px; }
+.entry-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 136px;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+  color: var(--text-3);
+  font-size: 14px;
+}
+.entry-doc { display: flex; align-items: flex-start; gap: 6px; min-height: 44px; padding-top: 10px; color: var(--text-2); font-size: 15px; word-break: break-all; }
+.entry-doc .icon { flex: none; color: var(--text-3); }
+.entry-main { display: grid; gap: 8px; min-width: 0; }
+.entry-src { min-height: 20px; color: var(--text-3); font-size: 14px; }
+.entry-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.picker { display: grid; gap: 16px; }
+.picker-bar { display: grid; gap: 8px; }
+.picker-rec { display: grid; gap: 8px; }
+.picker-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+
+/* 桌機版的面板改成畫面中間的對話框；請款的清單、挑檔案用更寬的 */
 .d-app .sheet {
   top: 50%;
   bottom: auto;
   transform: translate(-50%, -50%);
-  max-width: 720px;
-  max-height: 84vh;
+  max-width: 760px;
+  max-height: 86vh;
   border-radius: var(--radius-xl);
   box-shadow: 0 16px 48px rgba(15, 23, 42, 0.2);
 }
+.d-app .sheet.wide { max-width: 960px; }
 .d-app .sheet-body { padding: 20px 28px 28px; }
 .d-app .modal { inset: 32px; }
 .d-app .pdfv-inner { max-width: 800px; }

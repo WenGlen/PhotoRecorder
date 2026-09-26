@@ -1,4 +1,4 @@
-/* 阿美中會工地紀錄平台 Demo：後台（帳號管理、回收區、操作紀錄）
+/* 阿美中會工地記錄平台 Demo：後台（帳號管理、回收區、操作記錄）
    獨立網址 #/backstage：平台裡沒有任何入口，只有管理者進得來，其他人開這個網址只看到「找不到這個頁面」 */
 (function () {
   'use strict';
@@ -7,12 +7,12 @@
   if (!PR || PR.bootFailed) return;
 
   const { useState } = window.preactHooks;
-  const { html, APP_NAME, ROLE_IDS, LOG_ACTIONS, roc, rocDT, userById, catById, roleName, countText, byLine } = PR;
+  const { html, APP_NAME, ROLE_IDS, LOG_ACTIONS, ymd, dt, userById, catById, roleName, countText, byLine } = PR;
 
   const PAGES = [
     { id: 'accounts', label: '帳號管理' },
     { id: 'recycle', label: '回收區' },
-    { id: 'log', label: '操作紀錄' }
+    { id: 'log', label: '操作記錄' }
   ];
 
   function BackstageShell({ user, route, data, actions, children }) {
@@ -82,10 +82,10 @@
             ${list.map(r => html`<tr key=${r.id}>
               <td class="c-title">${r.title}${r.deleteNote && html`<div class="meta">原因：${r.deleteNote}</div>`}</td>
               <td><span class="chip">${catById(r.cat).short}</span></td>
-              <td class="c-nowrap">${roc(r.date)}</td>
+              <td class="c-nowrap">${ymd(r.date)}</td>
               <td>${byLine(r)}</td>
               <td>${userById(r.deletedBy).name}</td>
-              <td class="c-nowrap">${rocDT(r.deletedAt)}</td>
+              <td class="c-nowrap">${dt(r.deletedAt)}</td>
               <td class="c-nowrap">${countText(r)}</td>
               <td class="c-actions">
                 <button class="btn btn-outline sm" onClick=${() => actions.restoreRecord(r.id)}>救回</button>
@@ -97,7 +97,7 @@
     </div>`;
   }
 
-  // ---------- 操作紀錄 ----------
+  // ---------- 操作記錄 ----------
   function LogPage({ data, users }) {
     const [action, setAction] = useState('all');
     const [who, setWho] = useState('all');
@@ -105,8 +105,8 @@
     return html`<div class="d-page">
       <div class="d-page-head">
         <div>
-          <h1 class="d-h1">操作紀錄</h1>
-          <p class="muted">上傳、修改、更新文件、書審狀態、刪除、救回、帳號與設定的異動都會記下來。這份紀錄只能新增，不能修改或刪除。</p>
+          <h1 class="d-h1">操作記錄</h1>
+          <p class="muted">上傳、修改、更新文件、書審狀態、子分類備註、請款、刪除、救回、帳號與設定的異動都會記下來。這份記錄只能新增，不能修改或刪除。</p>
         </div>
       </div>
       <div class="d-filter-row">
@@ -124,7 +124,7 @@
         <thead><tr><th>時間</th><th>人</th><th>動作</th><th>對象</th><th>內容</th></tr></thead>
         <tbody>
           ${list.map(l => html`<tr key=${l.id}>
-            <td class="c-nowrap">${rocDT(l.at)}</td>
+            <td class="c-nowrap">${dt(l.at)}</td>
             <td class="c-nowrap">${userById(l.userId).name}</td>
             <td><span class="chip">${l.action}</span></td>
             <td class="c-title">${l.target}</td>

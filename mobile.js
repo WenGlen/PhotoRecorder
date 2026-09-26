@@ -1,4 +1,4 @@
-/* 阿美中會工地紀錄平台 Demo：手機版（現場用，主要負責上傳；保留簡單的查看） */
+/* 阿美中會工地記錄平台 Demo：手機版（現場用，主要負責上傳；保留簡單的查看） */
 (function () {
   'use strict';
 
@@ -7,25 +7,25 @@
 
   const { useState, useEffect } = window.preactHooks;
   const {
-    html, D, APP_NAME, DEFAULT_FILTERS, STATUS, roc, rocDT, userById, catById, subName, roleName,
-    isAdmin, canUpload, canEdit, canDelete, canEditFiles, editLeftHours, leftText, editNote, countText, byLine, zipText,
-    filterRecords, groupFor, Icon, Photo, TopBar, Sheet, StatusBlock, DocList, DateRange,
+    html, D, APP_NAME, DEFAULT_FILTERS, STATUS, ymd, dt, userById, catById, subLabel, roleName,
+    isAdmin, canUpload, canUploadPdf, canEdit, canDelete, canEditFiles, editLeftHours, leftText, editNote,
+    countText, byLine, filtersActive, filterRecords, groupFor, groupCount, useGroupOpen,
+    Icon, Photo, TopBar, Sheet, StatusBlock, DocList, DateRange, SiteNote,
     Fields, EditFiles, editFormOf, buildEditPatch, useUploadDraft, blockedCatHints, SelectedFiles, UploadProgress
   } = PR;
 
   // ---------- 首頁 ----------
-  function RecordCard({ rec, data, onOpen }) {
+  /** showCat：選「全部」時才顯示大分類；showDate：工地記錄已經依日期分段，卡片不再印日期 */
+  function RecordCard({ rec, onOpen, showCat, showDate }) {
     const cat = catById(rec.cat);
-    const sub = rec.sub && subName(data.subcats, rec.sub);
     const shown = rec.photos.slice(0, 4);
     const more = rec.photos.length - shown.length;
     return html`<a class="card" href=${'#/record/' + rec.id} onClick=${onOpen}>
-      <div class="card-top">
-        <span class="chip">${cat.short}</span>
-        ${sub && html`<span class="chip">${sub}</span>`}
-        <span class="date">${roc(rec.date)}</span>
+      ${(showCat || showDate || cat.status) && html`<div class="card-top">
+        ${showCat && html`<span class="chip">${cat.short}</span>`}
+        ${showDate && html`<span class="date">${ymd(rec.date)}</span>`}
         ${cat.status && html`<span class=${'st ' + STATUS[rec.status].cls}>${STATUS[rec.status].label}</span>`}
-      </div>
+      </div>`}
       <div class="card-title">${rec.title}</div>
       <div class="meta">${byLine(rec)}</div>
       ${shown.length > 0 && html`<div class="thumbs">
@@ -35,26 +35,47 @@
         </div>`)}
       </div>`}
       ${rec.pdfs.length > 0 && html`<ul class="card-files">
-        ${rec.pdfs.map(f => html`<li><${Icon} name="file" size=${20} /><span>${f.name}</span></li>`)}
+        ${rec.pdfs.map(f => html`<li><${Icon} name="file" size=${20} /><span>${f.name}</span>${f.diary && html`<span class="badge-diary">施工日誌</span>`}</li>`)}
       </ul>`}
+      ${rec.note && html`<div class="card-note">${rec.note}</div>`}
       <div class="meta">${countText(rec)}${rec.tags.length ? `｜關鍵字：${rec.tags.join('、')}` : ''}</div>
     </a>`;
+  }
+
+  // 可收合的分段標題：月份深色底、子分類淺灰底；工地記錄的日期子分類，備註排同一行，按鉛筆直接在這裡改
+  function GroupHead({ g, level, open, onToggle, user, note }) {
+    return html`<div class=${`group-head lv${level} kind-${g.kind}`}>
+      <div class="grp-line">
+        <button class="grp-toggle" aria-expanded=${open} onClick=${onToggle}>
+          <${Icon} name=${open ? 'down' : 'right'} size=${20} />
+          <span class="grp-label">${g.label}</span>
+          <span class="grp-n">${groupCount(g)} 筆</span>
+        </button>
+        <${SiteNote} g=${g} user=${user} note=${note} />
+      </div>
+    </div>`;
   }
 
   function MobileHome({ user, data, filters, setFilters, actions }) {
     const { records } = data;
     const [limit, setLimit] = useState(12);
+    const [noteDate, setNoteDate] = useState(null);
+    const note = { date: noteDate, edit: setNoteDate, save: (date, text) => { actions.setSiteNote(date, text); setNoteDate(null); } };
     const setF = patch => { setFilters({ ...filters, ...patch }); setLimit(12); };
     const open = hash => e => { e.preventDefault(); actions.go(hash); };
     const mine = canUpload(user)
       ? records.filter(r => r.uploaderId === user.id && editLeftHours(r) > 0)
         .sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt))
       : [];
-    // 手機版只用「分類、日期區間、搜尋」三個條件，其他篩選在電腦版
-    const recs = filterRecords(records, { ...DEFAULT_FILTERS, cat: filters.cat, from: filters.from, to: filters.to, q: filters.q }, data.subcats);
-    const shown = recs.slice(0, limit);
-    const groups = groupFor(filters.cat, shown, data.subcats);
-    const card = r => html`<${RecordCard} key=${r.id} rec=${r} data=${data} onOpen=${open('#/record/' + r.id)} />`;
+    // 手機版只用「分類、日期區間、搜尋」三個條件，關鍵字篩選在電腦版
+    const f = { ...DEFAULT_FILTERS, cat: filters.cat, from: filters.from, to: filters.to, q: filters.q };
+    const recs = filterRecords(records, f, data);
+    const groups = groupFor(filters.cat, recs, data);
+    const { isOpen, flip } = useGroupOpen(groups, filtersActive(f));
+    const card = r => html`<${RecordCard} key=${r.id} rec=${r} onOpen=${open('#/record/' + r.id)}
+      showCat=${filters.cat === 'all'} showDate=${filters.cat !== 'site'} />`;
+    const head = (g, level) => html`<${GroupHead} g=${g} level=${level} open=${isOpen(g.key)} onToggle=${() => flip(g.key)}
+      user=${user} note=${note} />`;
 
     return html`
       <header class="home-head">
@@ -74,7 +95,7 @@
             </div>
             <div>
               <div class="mine-title">${r.title}</div>
-              <div class="meta">${roc(r.date)}｜${catById(r.cat).short}｜${countText(r)}</div>
+              <div class="meta">${ymd(r.date)}｜${catById(r.cat).short}｜${countText(r)}</div>
             </div>
             ${!isAdmin(user) && html`<span class="mine-left">可改 ${leftText(editLeftHours(r))}</span>`}
           </a>`)}
@@ -82,11 +103,11 @@
       </section>`}
 
       <section class="m-sec">
-        <h2 class="m-sec-title">最新紀錄</h2>
-        <select class="select" aria-label="分類" value=${filters.cat} onChange=${e => setF({ cat: e.target.value })}>
-          <option value="all">全部分類</option>
-          ${D.categories.map(c => html`<option value=${c.id}>${c.name}</option>`)}
-        </select>
+        <div class="m-tabs" role="group" aria-label="分類">
+          ${[{ id: 'all', short: '全部' }, ...D.categories].map(c => html`<button class=${'m-tab' + (filters.cat === c.id ? ' on' : '')}
+            aria-pressed=${filters.cat === c.id}
+            onClick=${e => { setF({ cat: c.id }); e.currentTarget.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' }); }}>${c.short}</button>`)}
+        </div>
         <${DateRange} from=${filters.from} to=${filters.to} onChange=${setF} />
         <div class="search">
           <${Icon} name="search" />
@@ -96,24 +117,29 @@
       </section>
 
       ${recs.length === 0
-        ? html`<div class="empty"><p>沒有符合的紀錄</p></div>`
+        ? html`<div class="empty"><p>沒有符合的記錄</p></div>`
         : groups
-          ? groups.map(g => html`<section key=${g.key}>
-              <h2 class="group-title">${g.label}</h2>
-              <div class="list">${g.recs.map(card)}</div>
+          ? groups.map(g => html`<section key=${g.key} class="m-group">
+              ${head(g, 0)}
+              ${isOpen(g.key) && (g.children
+                ? g.children.map(c => html`<div key=${c.key} class="m-subgroup">
+                    ${head(c, 1)}
+                    ${isOpen(c.key) && html`<div class="list">${c.recs.map(card)}</div>`}
+                  </div>`)
+                : html`<div class="list">${g.recs.map(card)}</div>`)}
             </section>`)
-          : html`<div class="list">${shown.map(card)}</div>`}
-      ${recs.length > limit && html`<div class="pad-x">
+          : html`<div class="list">${recs.slice(0, limit).map(card)}</div>`}
+      ${!groups && recs.length > limit && html`<div class="pad-x">
         <button class="btn btn-outline btn-block" onClick=${() => setLimit(limit + 12)}>顯示更多（還有 ${recs.length - limit} 筆）</button>
       </div>`}
-      <p class="m-foot muted">要依身分、關鍵字篩選，或管理資料，請用電腦開啟。</p>`;
+      <p class="m-foot muted">要用關鍵字篩選、看請款或管理資料，請用電腦開啟。</p>`;
   }
 
   // 底部固定：一顆明確的「上傳」大按鈕，按下去進上傳流程
-  function MobileUploadBar({ actions }) {
+  function MobileUploadBar({ user, actions }) {
     return html`<div class="upload-bar">
       <button class="btn btn-primary btn-block upload-main" onClick=${() => actions.go('#/upload')}>
-        <${Icon} name="upload" size=${28} />上傳照片或文件
+        <${Icon} name="upload" size=${28} />${canUploadPdf(user) ? '上傳照片或文件' : '上傳工地照片'}
       </button>
     </div>`;
   }
@@ -131,28 +157,29 @@
     </ol>`;
   }
 
-  // ---------- 紀錄內容 ----------
+  // ---------- 記錄內容 ----------
   function MobileRecord({ rec, user, data, actions }) {
     const cat = catById(rec.cat);
-    const sub = rec.sub && subName(data.subcats, rec.sub);
+    const sub = subLabel(data, rec);
     const up = userById(rec.uploaderId);
     const editable = canEdit(user, rec);
     const deletable = canDelete(user, rec);
     const note = editNote(user, rec);
+    const zipAll = () => actions.zipRecord(rec);
 
     return html`
-      <${TopBar} title="紀錄內容" onBack=${actions.back} />
+      <${TopBar} title="記錄內容" onBack=${actions.back} />
       <main class="page">
         <div class="card-top">
           <span class="chip">${cat.name}</span>
           ${sub && html`<span class="chip">${sub}</span>`}
-          <span class="date">${roc(rec.date)}</span>
+          <span class="date">${ymd(rec.date)}</span>
         </div>
         <h1 class="page-title">${rec.title}</h1>
         <div>
           <div class="meta">${byLine(rec)}${up.disabled ? '（帳號已停用）' : ''}</div>
-          <div class="meta">上傳於 ${rocDT(rec.uploadedAt)}</div>
-          ${rec.editedAt && html`<div class="meta">最後修改：${userById(rec.editedBy).name} ${rocDT(rec.editedAt)}</div>`}
+          <div class="meta">上傳於 ${dt(rec.uploadedAt)}</div>
+          ${rec.editedAt && html`<div class="meta">最後修改：${userById(rec.editedBy).name} ${dt(rec.editedAt)}</div>`}
         </div>
 
         ${cat.status && html`<${StatusBlock} rec=${rec} user=${user} actions=${actions} />`}
@@ -165,14 +192,13 @@
           </div>`}
         </div>`}
 
-        ${rec.period && html`<div class="kv"><span>請款期別</span><span>第 ${rec.period} 期</span></div>`}
         ${rec.tags.length > 0 && html`<div class="kv"><span>關鍵字</span><span>${rec.tags.join('、')}</span></div>`}
         ${rec.note && html`<div class="kv"><span>備註</span><span>${rec.note}</span></div>`}
 
         ${rec.photos.length > 0 && html`<section class="sec">
           <div class="sec-head">
             <h2>照片 ${rec.photos.length} 張</h2>
-            <button class="btn btn-outline" onClick=${() => actions.toast(zipText(rec))}><${Icon} name="download" />整本下載</button>
+            <button class="btn btn-outline" onClick=${zipAll}><${Icon} name="download" />整本下載</button>
           </div>
           <div class="grid3">
             ${rec.photos.map((p, i) => html`<button class="thumb" aria-label=${`看第 ${i + 1} 張`} onClick=${() => actions.openLightbox(rec.id, i)}>
@@ -193,11 +219,13 @@
   // ---------- 上傳：選檔 → 選分類 → 確認資料 → 上傳 ----------
   function MobileUpload({ user, data, preset, simDrop, actions }) {
     const d = useUploadDraft({ user, data, preset, simDrop, actions });
+    const allowPdf = canUploadPdf(user);
     const [step, setStep] = useState('files');
     const [askLeave, setAskLeave] = useState(false);
     const cat = d.catId ? catById(d.catId) : null;
-    // 網址帶了分類進來時分類已經定好，只剩兩步
-    const stepLabels = d.presetCat ? ['選照片', '確認資料'] : ['選照片', '選分類', '確認資料'];
+    // 網址帶了分類進來、或這個身分只能傳一類時，分類已經定好，只剩兩步
+    const fixedCat = d.presetCat;
+    const stepLabels = fixedCat ? ['選照片', '確認資料'] : ['選照片', '選分類', '確認資料'];
     const stepIndex = step === 'files' ? 0 : step === 'cat' ? 1 : stepLabels.length - 1;
     const stepper = html`<${Stepper} steps=${stepLabels} current=${stepIndex} />`;
 
@@ -205,7 +233,7 @@
 
     const leave = () => { if (d.items.length && d.phase !== 'done') setAskLeave(true); else actions.back(); };
     const prev = () => {
-      if (step === 'form') setStep(d.presetCat ? 'files' : 'cat');
+      if (step === 'form') setStep(fixedCat ? 'files' : 'cat');
       else if (step === 'cat') setStep('files');
       else leave();
     };
@@ -227,7 +255,7 @@
         </div>
         <div class="step" style=${{ paddingTop: 0 }}>
           <button class="btn btn-line btn-block btn-lg" onClick=${() => actions.openShare(d.createdId)}>分享到 LINE 群組</button>
-          <button class="btn btn-outline btn-block" onClick=${() => actions.replace('#/record/' + d.createdId)}>查看這筆紀錄</button>
+          <button class="btn btn-outline btn-block" onClick=${() => actions.replace('#/record/' + d.createdId)}>查看這筆記錄</button>
           <button class="btn btn-outline btn-block" onClick=${actions.again}>再傳一批</button>
           <button class="link-btn" onClick=${actions.back}>回首頁</button>
         </div>`;
@@ -237,10 +265,10 @@
         <div class="step">
           ${stepper}
           <div>
-            <h1 class="step-title">選照片或文件</h1>
-            <p class="step-sub">可以直接拍照、從手機相簿選，或選 PDF；可以選好幾張</p>
+            <h1 class="step-title">${allowPdf ? '選照片或文件' : '選照片'}</h1>
+            <p class="step-sub">${allowPdf ? '可以直接拍照、從手機相簿選，或選 PDF；可以選好幾張' : '可以直接拍照或從手機相簿選，可以選好幾張'}</p>
           </div>
-          <div class="pick-grid">
+          <div class=${'pick-grid' + (allowPdf ? '' : ' two')}>
             <label class="pick-btn">
               <input type="file" accept="image/*" capture="environment" onChange=${e => { d.addFiles(e.target.files, 'photo'); e.target.value = ''; }} />
               <${Icon} name="camera" size=${32} />${d.items.length ? '再拍一張' : '拍照'}
@@ -249,18 +277,18 @@
               <input type="file" accept="image/*" multiple onChange=${e => { d.addFiles(e.target.files, 'photo'); e.target.value = ''; }} />
               <${Icon} name="image" size=${32} />${d.items.length ? '再選照片' : '從相簿選'}
             </label>
-            <label class="pick-btn">
+            ${allowPdf && html`<label class="pick-btn">
               <input type="file" accept="application/pdf,.pdf" multiple onChange=${e => { d.addFiles(e.target.files, 'pdf'); e.target.value = ''; }} />
               <${Icon} name="file" size=${32} />選 PDF
-            </label>
+            </label>`}
           </div>
           ${!d.items.length && html`<button class="btn btn-outline btn-block" onClick=${d.addSamples}>（Demo）加入 15 張範例照片</button>`}
-          ${d.reading > 0 && html`<div class="notice info">正在讀取照片的拍攝時間與 PDF 頁數…</div>`}
+          ${d.reading > 0 && html`<div class="notice info">正在處理照片…</div>`}
           <${SelectedFiles} d=${d} />
         </div>
         <div class="step-actions">
           <button class="btn btn-primary btn-block btn-lg" disabled=${!d.items.length || d.reading > 0}
-            onClick=${() => setStep(d.presetCat ? 'form' : 'cat')}>下一步</button>
+            onClick=${() => setStep(fixedCat ? 'form' : 'cat')}>下一步</button>
         </div>`;
     } else if (step === 'cat') {
       top = html`<${TopBar} title="上傳" onBack=${prev} backLabel="上一步" right=${closeBtn} />`;
@@ -308,7 +336,6 @@
   function MobileEdit({ rec, user, data, actions }) {
     const [form, setForm] = useState(() => editFormOf(rec));
     const [err, setErr] = useState('');
-    const files = canEditFiles(user, rec);
     function save() {
       const result = buildEditPatch(rec, form, user, data);
       if (result.error) { setErr(result.error); actions.toast(result.error); return; }
@@ -319,11 +346,8 @@
     return html`
       <${TopBar} title="修改資料" onBack=${actions.back} />
       <main class="step">
-        <div class="notice info">${files
-          ? '可以改下面的資料，也可以移除或補傳照片、文件。每次修改都會留下紀錄。'
-          : '書審文件不能在這裡增刪，要換新檔請回紀錄頁按「更新」。每次修改都會留下紀錄。'}</div>
-        <${Fields} form=${form} setForm=${setForm} catId=${rec.cat} user=${user} data=${data} />
-        ${files && html`<${EditFiles} form=${form} setForm=${setForm} toast=${actions.toast} />`}
+        <${Fields} form=${form} setForm=${setForm} catId=${rec.cat} user=${user} data=${data} extraDay=${rec.cat === 'site' ? rec.date : ''} />
+        ${canEditFiles(user, rec) && html`<${EditFiles} form=${form} setForm=${setForm} rec=${rec} user=${user} toast=${actions.toast} />`}
         ${err && html`<div class="notice error">${err}</div>`}
       </main>
       <div class="step-actions">

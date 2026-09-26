@@ -1,10 +1,10 @@
-/* 阿美中會工地紀錄平台 Demo：主程式（狀態、路由、手機版與桌機版切換） */
+/* 阿美中會工地記錄平台 Demo：主程式（狀態、路由、手機版與桌機版切換） */
 (function () {
   'use strict';
 
   const root = document.getElementById('app');
   const PR = window.PR;
-  if (!PR || PR.bootFailed || !PR.MobileHome || !PR.RecordsPage || !PR.BackstageShell) {
+  if (!PR || PR.bootFailed || !PR.MobileHome || !PR.RecordsPage || !PR.BillingPage || !PR.BackstageShell || !PR.readFiles) {
     root.innerHTML = '<p class="boot-msg">需要網路連線才能開啟這個 demo，請確認網路後重新整理。</p>';
     return;
   }
@@ -12,19 +12,19 @@
   const { render } = window.preact;
   const { useState, useEffect, useRef } = window.preactHooks;
   const {
-    html, DEFAULT_FILTERS, GUEST, STATUS, MAX_PDF_BYTES, uid, nowIso, fmtSize, syncUsers, catById, roleName, countText, recordLink,
-    countPdfPages, isAdmin, canUpload, canEdit, canManageLists, parseHash, logEntry, initialData, initialUsers,
+    html, DEFAULT_FILTERS, GUEST, STATUS, uid, nowIso, syncUsers, catById, roleName, countText, recordLink,
+    siteSubName, billingName, isAdmin, canUpload, canEdit, canManageSubcats, parseHash, logEntry, initialData, initialUsers,
     DemoBar, DisabledScreen, LoginScreen, Lightbox, PdfViewer,
     ShareSheet, DeleteSheet, PurgeSheet, AddAccountSheet, DemoSheet,
     MobileHome, MobileUploadBar, MobileRecord, MobileUpload, MobileEdit, MobileBlocked,
-    DesktopShell, RecordsPage, BillingPage, KeywordsPage, SubcatsPage, DesktopUpload, DesktopBlocked,
+    DesktopShell, RecordsPage, SubcatsPage, DesktopUpload, DesktopBlocked, BillingPage,
     BackstageShell, AccountsPage, RecyclePage, LogPage
   } = PR;
 
   const DESKTOP_MIN = 1024;
-  const EDIT_FIELDS = [['date', '日期'], ['title', '名稱'], ['sub', '子分類'], ['tags', '關鍵字'], ['note', '備註'], ['period', '期別'], ['photos', '照片'], ['pdfs', '文件']];
-  // 照片、文件只比對有哪幾個檔案
-  const fieldValue = (key, v) => (key === 'photos' || key === 'pdfs' ? (v || []).map(x => x.id) : v ?? '');
+  const EDIT_FIELDS = [['date', '日期'], ['title', '名稱'], ['sub', '子分類'], ['tags', '關鍵字'], ['note', '備註'], ['photos', '照片'], ['pdfs', '文件']];
+  // 照片、文件比對有哪幾個檔案，以及哪些勾了施工日誌
+  const fieldValue = (key, v) => (key === 'photos' || key === 'pdfs' ? (v || []).map(x => `${x.id}${x.diary ? '*' : ''}`) : v ?? '');
   // 手機版有自己畫面的路由；其他（包含桌機才有的頁面）都顯示首頁，底部上傳鈕照常出現
   const MOBILE_SCREENS = ['record', 'edit', 'upload', 'backstage'];
   const isMobileHome = route => !MOBILE_SCREENS.includes(route.name);
@@ -114,7 +114,8 @@
         else location.hash = '#/upload';
       },
       openLightbox: (recId, index) => setLightbox({ recId, index }),
-      openPdf: (recId, pdfId) => setPdf({ recId, pdfId }),
+      openGallery: (gallery, index) => setLightbox({ gallery, index }),
+      openPdf: file => setPdf(file),
       openShare: recId => setSheet({ type: 'share', recId }),
       askDelete: recId => setSheet({ type: 'delete', recId }),
       askPurge: recId => setSheet({ type: 'purge', recId }),
@@ -125,16 +126,26 @@
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, () => toast(`請手動複製：${link}`));
         else toast(`請手動複製：${link}`);
       },
+      // 一筆記錄的所有照片與文件打包成 zip
+      async zipRecord(rec) {
+        const items = [...rec.photos.map(file => ({ file, kind: 'photo' })), ...rec.pdfs.map(file => ({ file, kind: 'pdf' }))];
+        toast(`正在打包 ${items.length} 個檔案…`);
+        try {
+          await PR.downloadZip(items, `${rec.date}_${rec.title}.zip`);
+          toast(`已打包 ${items.length} 個檔案`);
+        } catch (e) {
+          toast(e.message || '打包失敗，請再試一次');
+        }
+      },
       addRecord(rec, extra) {
         const detail = `${catById(rec.cat).name}，${countText(rec)}`;
         setData(d => ({
           ...d,
           records: [rec, ...d.records],
-          subcats: extra.newSub ? [...d.subcats, extra.newSub] : d.subcats,
-          periods: extra.newPeriod ? [...d.periods, extra.newPeriod] : d.periods,
+          subcats: extra.newSub ? { ...d.subcats, [rec.cat]: [...d.subcats[rec.cat], extra.newSub] } : d.subcats,
           log: [
             logEntry(user.id, '上傳', rec.title, detail),
-            ...(extra.newSub ? [logEntry(user.id, '設定', '子分類', `新增「${extra.newSub.name}」`)] : []),
+            ...(extra.newSub ? [logEntry(user.id, '設定', `${catById(rec.cat).name}子分類`, `新增「${extra.newSub.name}」`)] : []),
             ...d.log
           ]
         }));
@@ -149,11 +160,10 @@
           return {
             ...d,
             records: d.records.map(r => (r.id === id ? { ...r, ...patch } : r)),
-            periods: extra.newPeriod ? [...d.periods, extra.newPeriod] : d.periods,
-            subcats: extra.newSub ? [...d.subcats, extra.newSub] : d.subcats,
+            subcats: extra.newSub ? { ...d.subcats, [old.cat]: [...d.subcats[old.cat], extra.newSub] } : d.subcats,
             log: [
               logEntry(user.id, '修改', patch.title || old.title, changed.length ? `改了：${changed.join('、')}` : '沒有改動'),
-              ...(extra.newSub ? [logEntry(user.id, '設定', '子分類', `新增「${extra.newSub.name}」`)] : []),
+              ...(extra.newSub ? [logEntry(user.id, '設定', `${catById(old.cat).name}子分類`, `新增「${extra.newSub.name}」`)] : []),
               ...d.log
             ]
           };
@@ -169,24 +179,38 @@
         }));
         toast(`「${rec.title}」已改成${STATUS[to].label}`);
       },
-      // 書審文件「更新」：新檔直接取代舊檔，更新的人和時間記在文件上，也進操作紀錄
+      // 書審文件「更新」：新檔直接取代舊檔，更新的人和時間記在文件上，也進操作記錄
       async updateDoc(recId, pdfId, file) {
         if (!file) return;
         const rec = data.records.find(r => r.id === recId);
         const old = rec && rec.pdfs.find(p => p.id === pdfId);
         if (!old) return;
-        if (!(file.type === 'application/pdf' || /\.pdf$/i.test(file.name))) { toast('只能更新成 PDF'); return; }
-        if (file.size > MAX_PDF_BYTES) { toast('PDF 單檔上限 50MB，請先壓縮或分冊'); return; }
-        const next = {
-          name: file.name, size: fmtSize(file.size), pages: await countPdfPages(file), url: URL.createObjectURL(file),
-          uploaderId: user.id, uploadedAt: nowIso()
-        };
+        const [it] = await PR.readFiles([file], 'pdf', { room: 0, toast });
+        if (!it) return;
+        const next = { name: it.name, size: it.size, pages: it.pages, url: it.url, uploaderId: user.id, uploadedAt: nowIso() };
         setData(d => ({
           ...d,
           records: d.records.map(r => (r.id === recId ? { ...r, pdfs: r.pdfs.map(p => (p.id === pdfId ? { ...p, ...next } : p)) } : r)),
-          log: [logEntry(user.id, '更新文件', rec.title, `${old.name} 換成 ${file.name}`), ...d.log]
+          log: [logEntry(user.id, '更新文件', rec.title, `${old.name} 換成 ${it.name}`), ...d.log]
         }));
-        toast(`已更新「${file.name}」`);
+        toast(`已更新「${it.name}」`);
+      },
+      // 工地記錄日期子分類的備註：清空就是刪掉備註
+      setSiteNote(date, text) {
+        setData(d => {
+          const notes = { ...d.siteNotes };
+          if (text) notes[date] = { text, by: user.id, at: nowIso() };
+          else delete notes[date];
+          return { ...d, siteNotes: notes, log: [logEntry(user.id, '子分類備註', siteSubName(date), text || '清除備註'), ...d.log] };
+        });
+        toast(text ? '已儲存子分類備註' : '已清除子分類備註');
+      },
+      setSubcats(catId, list, detail) {
+        setData(d => ({
+          ...d,
+          subcats: { ...d.subcats, [catId]: list },
+          log: detail ? [logEntry(user.id, '設定', `${catById(catId).name}子分類`, detail), ...d.log] : d.log
+        }));
       },
       deleteRecord(id) {
         setData(d => {
@@ -225,6 +249,26 @@
           };
         });
       },
+      // ---------- 請款 ----------
+      addBilling(info) {
+        const b = { id: uid('b'), ...info, createdBy: user.id, createdAt: nowIso(), merged: null, photos: [], docs: [], quotes: [] };
+        setData(d => ({ ...d, billing: [...d.billing, b], log: [logEntry(user.id, '請款', billingName(b), '建立請款項目'), ...d.log] }));
+        toast(`已建立「${billingName(b)}」`);
+        return b.id;
+      },
+      updateBilling(id, patch, detail) {
+        setData(d => {
+          const old = d.billing.find(b => b.id === id);
+          if (!old) return d;
+          const next = { ...old, ...patch };
+          return {
+            ...d,
+            billing: d.billing.map(b => (b.id === id ? next : b)),
+            log: detail ? [logEntry(user.id, '請款', billingName(next), detail), ...d.log] : d.log
+          };
+        });
+      },
+      // ---------- 帳號 ----------
       updateUser(id, patch) {
         const target = users.find(u => u.id === id);
         if (!target) return;
@@ -240,12 +284,6 @@
         setUsers(list => [...list, u]);
         addLog('帳號', u.name, `新增帳號：${roleName(u.role)}`);
         toast(`已新增 ${u.name}，對方用 ${u.email} 登入就能使用`);
-      },
-      setTags(list, detail) {
-        setData(d => ({ ...d, tags: list, log: detail ? [logEntry(user.id, '設定', '常用關鍵字', detail), ...d.log] : d.log }));
-      },
-      setSubcats(list, detail) {
-        setData(d => ({ ...d, subcats: list, log: detail ? [logEntry(user.id, '設定', '子分類', detail), ...d.log] : d.log }));
       }
     };
 
@@ -300,13 +338,11 @@
 
     const demoBar = html`<${DemoBar} user=${user} mode=${mode} onOpen=${() => setSheet({ type: 'demo' })}
       onToggleMode=${() => setViewMode(mode === 'desktop' ? 'mobile' : 'desktop')} />`;
-    const lbRec = user && lightbox && data.records.find(r => r.id === lightbox.recId);
-    const pdfRec = user && pdf && data.records.find(r => r.id === pdf.recId);
-    const pdfFile = pdfRec && pdfRec.pdfs.find(p => p.id === pdf.pdfId);
+    const gallery = user && lightbox && (lightbox.gallery || data.records.find(r => r.id === lightbox.recId));
     const overlays = html`
-      ${lbRec && html`<${Lightbox} rec=${lbRec} index=${lightbox.index} toast=${toast}
+      ${gallery && html`<${Lightbox} gallery=${gallery} index=${lightbox.index} toast=${toast}
         onIndex=${i => setLightbox(lb => (lb ? { ...lb, index: i } : lb))} onClose=${() => setLightbox(null)} />`}
-      ${pdfFile && html`<${PdfViewer} pdf=${pdfFile} toast=${toast} onClose=${() => setPdf(null)} />`}
+      ${user && pdf && html`<${PdfViewer} pdf=${pdf} toast=${toast} onClose=${() => setPdf(null)} />`}
       ${renderSheet()}
       ${toastMsg && html`<div class="toast" role="status" key=${toastMsg.at}>${toastMsg.msg}</div>`}`;
     const shellClass = mode === 'desktop' ? 'd-app' : 'app';
@@ -342,13 +378,12 @@
       if (route.name === 'upload') {
         page = canUpload(user)
           ? html`<${DesktopUpload} key=${uploadKey} ...${common} preset=${q} simDrop=${simDrop} />`
-          : html`<${DesktopBlocked} message="一般檢視者只能查看與下載，不能上傳。" />`;
+          : html`<${DesktopBlocked} message="這個帳號不能上傳。" />`;
       } else if (route.name === 'billing') {
-        page = html`<${BillingPage} ...${common} />`;
+        page = html`<${BillingPage} ...${common} route=${route} />`;
       } else if (route.name === 'settings') {
-        if (!canManageLists(user)) page = html`<${DesktopBlocked} message="這個頁面只有管理者和建築師事務所能使用。" />`;
-        else if (route.id === 'keywords') page = html`<${KeywordsPage} data=${data} actions=${actions} />`;
-        else if (route.id === 'subcats') page = html`<${SubcatsPage} data=${data} actions=${actions} />`;
+        if (!canManageSubcats(user)) page = html`<${DesktopBlocked} message="這個頁面只有管理者和建築師事務所能使用。" />`;
+        else if (route.id === 'review' || route.id === 'event') page = html`<${SubcatsPage} key=${route.id} catId=${route.id} data=${data} actions=${actions} />`;
         else page = html`<${DesktopBlocked} message="找不到這個頁面。" />`;
       } else if (route.name === 'backstage') {
         // 不是管理者：當作沒有這個網址，不透露後台存在
@@ -369,16 +404,16 @@
       const rec = data.records.find(r => r.id === route.id);
       screen = rec
         ? html`<${MobileRecord} ...${common} rec=${rec} />`
-        : html`<${MobileBlocked} title="紀錄內容" message="這筆紀錄已經刪除或不存在。" onBack=${actions.back} />`;
+        : html`<${MobileBlocked} title="記錄內容" message="這筆記錄已經刪除或不存在。" onBack=${actions.back} />`;
     } else if (route.name === 'edit') {
       const rec = data.records.find(r => r.id === route.id);
-      if (!rec) screen = html`<${MobileBlocked} title="修改資料" message="這筆紀錄已經刪除或不存在。" onBack=${actions.back} />`;
-      else if (!canEdit(user, rec)) screen = html`<${MobileBlocked} title="修改資料" message="你沒有權限修改這筆紀錄。" onBack=${actions.back} />`;
+      if (!rec) screen = html`<${MobileBlocked} title="修改資料" message="這筆記錄已經刪除或不存在。" onBack=${actions.back} />`;
+      else if (!canEdit(user, rec)) screen = html`<${MobileBlocked} title="修改資料" message="你沒有權限修改這筆記錄。" onBack=${actions.back} />`;
       else screen = html`<${MobileEdit} key=${rec.id + userId} ...${common} rec=${rec} />`;
     } else if (route.name === 'upload') {
       screen = canUpload(user)
         ? html`<${MobileUpload} key=${uploadKey} ...${common} preset=${q} simDrop=${simDrop} />`
-        : html`<${MobileBlocked} title="上傳" message="一般檢視者只能查看與下載，不能上傳。" onBack=${actions.back} />`;
+        : html`<${MobileBlocked} title="上傳" message="這個帳號不能上傳。" onBack=${actions.back} />`;
     } else if (route.name === 'backstage') {
       screen = html`<${MobileBlocked} title="" message=${isAdmin(user) ? '後台請用電腦開啟。' : '找不到這個頁面。'} onBack=${actions.back} />`;
     } else {
@@ -391,7 +426,7 @@
     return html`<div class=${appClass}>
       ${demoBar}
       ${screen}
-      ${showBar && html`<${MobileUploadBar} actions=${actions} />`}
+      ${showBar && html`<${MobileUploadBar} user=${user} actions=${actions} />`}
       ${overlays}
     </div>`;
   }
