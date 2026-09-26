@@ -256,7 +256,7 @@
               ${active && html`<button class="link-btn" onClick=${() => setFilters(DEFAULT_FILTERS)}>清除條件</button>`}
               <div class="d-result-tools">
                 <button class=${'btn btn-outline sm' + (dlMode ? ' on' : '')} aria-pressed=${dlMode}
-                  onClick=${() => (dlMode ? endDl() : setDlMode(true))}><${Icon} name="download" size=${20} />${dlMode ? '結束下載模式' : '下載模式'}</button>
+                  onClick=${() => (dlMode ? endDl() : setDlMode(true))}><${Icon} name="download" size=${20} />${dlMode ? '結束多檔下載' : '一次下載多個檔案'}</button>
               </div>
             </div>
             ${dlMode && html`<div class="d-dlbar" role="status">
