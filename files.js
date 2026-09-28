@@ -7,6 +7,9 @@
   if (!PR || PR.bootFailed) return;
 
   const { uid, fmtSize, photoName, fromLabel, MAX_PHOTOS, MAX_PDF_BYTES } = PR;
+  /** 下載文件用改過的名稱；名稱沒有 .pdf 的補上 */
+  const pdfName = f => (/\.pdf$/i.test(f.name) ? f.name : `${f.name}.pdf`);
+  const nameOf = (file, kind) => (kind === 'photo' ? photoName(file) : pdfName(file));
 
   const LIBS = {
     pdf: { url: 'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js', global: 'PDFLib' },
@@ -110,7 +113,7 @@
    * @param {FileList|File[]} fileList 選到的檔案
    * @param {'photo'|'pdf'|'auto'} kind 從哪個選檔按鈕進來；auto 表示兩種都收
    * @param {{ room: number, toast: (msg: string) => void, allowPdf?: boolean }} opts room 是還能再加幾張照片
-   * @returns {Promise<Object[]>} 可以加進清單的項目
+   * @returns {Promise<Object[]>} 可以加進清單的項目；文件的 name 之後可以改，origName 留著原檔名
    */
   async function readFiles(fileList, kind, { room, toast, allowPdf = true }) {
     const files = Array.from(fileList || []);
@@ -151,7 +154,7 @@
         };
       }),
       ...pdfFiles.map(async f => ({
-        id: uid('f'), kind: 'pdf', name: f.name, size: fmtSize(f.size), pages: await countPdfPages(f), url: URL.createObjectURL(f)
+        id: uid('f'), kind: 'pdf', name: f.name, origName: f.name, size: fmtSize(f.size), pages: await countPdfPages(f), url: URL.createObjectURL(f)
       }))
     ]);
   }
@@ -272,7 +275,7 @@
   /** 下載單一照片或 PDF */
   async function downloadFile(file, kind, toast) {
     try {
-      downloadBlob(await fileBlob(file, kind), kind === 'photo' ? photoName(file) : file.name);
+      downloadBlob(await fileBlob(file, kind), nameOf(file, kind));
     } catch (e) {
       toast(e.message || '下載失敗，請再試一次');
     }
@@ -303,7 +306,7 @@
     for (let i = 0; i < items.length; i++) {
       if (onProgress) onProgress(i, items.length);
       const { folder, file, kind } = items[i];
-      const name = safeName(kind === 'photo' ? photoName(file) : file.name);
+      const name = safeName(nameOf(file, kind));
       zip.file(uniquePath(folder ? `${safeName(folder)}/${name}` : name, used), await fileBlob(file, kind));
     }
     if (onProgress) onProgress(items.length, items.length);

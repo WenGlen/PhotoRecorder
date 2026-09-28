@@ -14,6 +14,7 @@
   const D = window.DEMO;
 
   const APP_NAME = '阿美中會工地記錄平台';
+  const LOGO_SRC = 'logo.png';
   const NOW = new Date(D.NOW);
   const LOADED_AT = Date.now();
   const nowIso = () => new Date(NOW.getTime() + (Date.now() - LOADED_AT)).toISOString();
@@ -28,8 +29,8 @@
   const LOG_ACTIONS = ['上傳', '修改', '更新文件', '書審狀態', '子分類備註', '請款', '刪除', '救回', '永久刪除', '帳號', '設定'];
 
   const ROLES = {
-    admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有記錄，也能解鎖已完成的請款；後台要知道網址才進得去' },
-    architect: { name: '建築師事務所', desc: '可以傳工地記錄、書審及材料測試、活動記錄，切換書審狀態，管理子分類' },
+    admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有檔案夾，也能審核請款、解鎖已全部審核完成的請款；後台要知道網址才進得去' },
+    architect: { name: '建築師事務所', desc: '可以傳工地記錄、書審及材料測試、活動記錄、案件基本資料，切換書審狀態，管理子分類，審核請款' },
     contractor: { name: '承包商', desc: '可以傳工地記錄、書審及材料測試、活動記錄，建立請款；一週內可以改或刪自己傳的' },
     amis: { name: '阿美中會', desc: '全部都能看；只能傳工地記錄的照片，不能傳文件' }
   };
@@ -68,10 +69,12 @@
   }
   const today = () => isoDate(NOW);
   const recentDays = () => Array.from({ length: RECENT_DAYS }, (_, i) => addDays(today(), -i));
-  // 工地記錄的子分類名稱固定是「2026/09/24工地記錄」
-  const siteSubName = d => `${ymd(d)}工地記錄`;
-  // 請款項目名稱自動產生：「第3期請款：2026/08/01~2026/08/31」
-  const billingName = b => `第${b.no}期請款：${ymd(b.from)}~${ymd(b.to)}`;
+  // 工地記錄的子分類名稱：「09/24 本日記錄」，不寫年份（列表上已經依月份分段）
+  const siteSubName = d => `${d.slice(5, 7)}/${d.slice(8, 10)} 本日記錄`;
+  // 請款的日期區間：「2026/08/01~2026/08/31」；還沒填結束日期時是「2026/10/01～」
+  const billingRange = b => `${ymd(b.from)}${b.to ? `~${ymd(b.to)}` : '～'}`;
+  // 請款名稱自動產生：「第3期請款：2026/08/01~2026/08/31」
+  const billingName = b => `第${b.no}期請款：${billingRange(b)}`;
   /**
    * 請款裡從記錄挑來的照片或文件出自哪一筆：「日期 項目」，例如「2026/07/08 一樓版灌漿」。挑照片時也當預設名稱。
    * @param {{ date: string, title: string }} from
@@ -103,6 +106,8 @@
   const canManageSubcats = u => u.role === 'admin' || u.role === 'architect';
   const canEditSiteNote = u => ['admin', 'architect', 'contractor'].includes(u.role);
   const canBilling = u => u.role === 'admin' || u.role === 'contractor';
+  /** 請款的「審核完成」和「全部審核完成」：管理者、建築師事務所 */
+  const canApproveBilling = u => u.role === 'admin' || u.role === 'architect';
   const editLeftHours = rec => (new Date(rec.uploadedAt).getTime() + EDIT_HOURS * 3600000 - NOW.getTime()) / 3600000;
   /**
    * 能不能修改記錄的資料：管理者不限時間，上傳者本人一週內。
@@ -124,11 +129,11 @@
    * @returns {string} 沒有要說明的時候回傳空字串
    */
   function editNote(u, rec) {
-    if (isAdmin(u)) return '管理者可以修改或刪除所有記錄，不限時間';
+    if (isAdmin(u)) return '管理者可以修改或刪除所有檔案夾，不限時間';
     if (rec.uploaderId !== u.id) return '';
     const left = editLeftHours(rec);
     const review = rec.cat === 'review';
-    if (left > 0) return review ? `你上傳的記錄，還可以修改資料 ${leftText(left)}` : `你上傳的記錄，還可以修改或刪除 ${leftText(left)}`;
+    if (left > 0) return review ? `你上傳的檔案夾，還可以修改 ${leftText(left)}` : `你上傳的檔案夾，還可以修改或刪除 ${leftText(left)}`;
     return '已超過一週，不能修改或刪除。需要更正請找管理者';
   }
 
@@ -170,7 +175,7 @@
       if (hi && r.date > hi) return false;
       if (f.tags.length && !f.tags.some(t => r.tags.includes(t))) return false;
       if (q) {
-        const hay = [r.title, r.note, r.tags.join(' '), userById(r.uploaderId).name, subLabel(data, r), r.pdfs.map(p => p.name).join(' ')]
+        const hay = [r.title, r.note, r.tags.join(' '), userById(r.uploaderId).name, subLabel(data, r), r.pdfs.map(p => `${p.name} ${p.origName || ''}`).join(' ')]
           .join(' ').toLowerCase();
         if (!hay.includes(q)) return false;
       }
@@ -205,11 +210,11 @@
     return months;
   }
 
-  /** 自訂子分類分段，順序照子分類的設定；沒有記錄的子分類不顯示 */
-  function groupBySub(recs, subs, catId) {
+  /** 自訂子分類分段，順序照子分類的設定；keepEmpty 時沒有檔案夾的子分類也列出來 */
+  function groupBySub(recs, subs, catId, keepEmpty) {
     const groups = subs
       .map(s => ({ key: `s-${catId}-${s.id}`, kind: 'sub', label: s.name, recs: recs.filter(r => r.sub === s.id) }))
-      .filter(g => g.recs.length);
+      .filter(g => keepEmpty || g.recs.length);
     const rest = recs.filter(r => !subs.some(s => s.id === r.sub));
     if (rest.length) groups.push({ key: `s-${catId}-none`, kind: 'sub', label: '未分子分類', recs: rest });
     return groups;
@@ -217,17 +222,21 @@
 
   /**
    * 列表怎麼分段：工地記錄是月份＋日期兩層，書審及材料測試、活動記錄依子分類，全部和基本資料不分段。
+   * @param {string} catId
+   * @param {Object[]} recs 已經篩選、排序好的檔案夾
+   * @param {Object} data
+   * @param {boolean} [keepEmpty] 書審及材料測試、活動記錄：設定了的子分類都列出來，沒有檔案夾的也列（沒有搜尋、篩選時）
    * @returns {Object[]|null} 不分段時回傳 null
    */
-  function groupFor(catId, recs, data) {
+  function groupFor(catId, recs, data, keepEmpty) {
     const c = catById(catId);
     if (!c || !c.subKind) return null;
     if (c.subKind === 'day') return groupSite(recs, data.siteNotes);
-    return groupBySub(recs, subList(data, catId), catId);
+    return groupBySub(recs, subList(data, catId), catId, keepEmpty);
   }
   const groupCount = g => (g.children ? g.children.reduce((n, c) => n + c.recs.length, 0) : g.recs.length);
 
-  /** 預設展開：月份展開最近兩個；子分類展開最上面三個，其餘收合 */
+  /** 預設展開：月份展開最近兩個；子分類展開最上面三個有檔案夾的，其餘收合 */
   function defaultOpenKeys(groups) {
     const open = new Set();
     if (!groups) return open;
@@ -235,7 +244,7 @@
       groups.slice(0, 2).forEach(g => open.add(g.key));
       groups.flatMap(g => g.children).slice(0, 3).forEach(c => open.add(c.key));
     } else {
-      groups.slice(0, 3).forEach(g => open.add(g.key));
+      groups.filter(g => g.recs.length).slice(0, 3).forEach(g => open.add(g.key));
     }
     return open;
   }
@@ -271,6 +280,8 @@
 
   // ---------- 初始資料與操作記錄 ----------
   const logEntry = (userId, action, target, detail) => ({ id: uid('l'), at: nowIso(), userId, action, target, detail: detail || '' });
+  /** 「更新文件」的內容：文件名稱不變，換成新檔的內容 */
+  const updateDocDetail = (name, fileName) => `${name}：換成新檔 ${fileName}`;
 
   function seedLog(data) {
     const log = [];
@@ -279,14 +290,18 @@
     data.records.forEach(r => {
       push(r.uploadedAt, r.uploaderId, '上傳', r.title, uploadDetail(r));
       if (r.editedAt) push(r.editedAt, r.editedBy, '修改', r.title, '改了：備註');
-      r.pdfs.filter(p => p.uploadedAt !== r.uploadedAt).forEach(p => push(p.uploadedAt, p.uploaderId, '更新文件', r.title, `換成 ${p.name}`));
+      r.pdfs.filter(p => p.uploadedAt !== r.uploadedAt)
+        .forEach(p => push(p.uploadedAt, p.uploaderId, '更新文件', r.title, updateDocDetail(p.name, p.origName || p.name)));
       if (r.statusAt) push(r.statusAt, r.statusBy, '書審狀態', r.title, `${STATUS.pending.label} 改成 ${STATUS[r.status].label}`);
     });
     Object.entries(data.siteNotes).forEach(([date, n]) => push(n.at, n.by, '子分類備註', siteSubName(date), n.text));
     data.billing.forEach(b => {
-      push(b.createdAt, b.createdBy, '請款', billingName(b), '建立請款項目');
+      push(b.createdAt, b.createdBy, '請款', billingName(b), '新增一期請款');
       if (b.merged) push(b.merged.uploadedAt, b.merged.uploaderId, '請款', billingName(b), `整合施工日誌（${b.merged.pages} 頁）`);
-      if (b.done) push(b.done.at, b.done.by, '請款', billingName(b), '請款完成（鎖定）');
+      [...b.quotes, ...(b.merged ? [b.merged] : []), ...b.docs, ...b.others]
+        .filter(it => it.approved).forEach(it => push(it.approved.at, it.approved.by, '請款', billingName(b), `審核完成：${it.name}`));
+      if (b.photosApproved) push(b.photosApproved.at, b.photosApproved.by, '請款', billingName(b), `審核完成：請款照片 ${b.photos.length} 張`);
+      if (b.done) push(b.done.at, b.done.by, '請款', billingName(b), '全部審核完成');
     });
     data.deleted.forEach(r => {
       push(r.uploadedAt, r.uploaderId, '上傳', r.title, uploadDetail(r));
@@ -358,6 +373,9 @@
     </div>`;
   }
 
+  /** 平台 logo，排在平台名稱左邊。名稱已經是文字，圖不另外唸（alt 空白）；大小由 CSS 依位置決定 */
+  const BrandLogo = () => html`<img class="brand-logo" src=${LOGO_SRC} alt="" width="40" height="40" />`;
+
   function TopBar({ title, onBack, backLabel = '返回', right }) {
     return html`<header class="topbar">
       ${onBack && html`<button class="back-btn" onClick=${onBack}><${Icon} name="back" size=${28} /><span>${backLabel}</span></button>`}
@@ -381,12 +399,12 @@
     }, [onClose]);
   }
 
-  function Sheet({ title, onClose, wide, children }) {
+  function Sheet({ title, onClose, wide, cls, children }) {
     useBodyLock();
     useEscape(onClose);
     return html`
       <div class="overlay" onClick=${onClose}></div>
-      <div class=${'sheet' + (wide ? ' wide' : '')} role="dialog" aria-modal="true" aria-label=${title}>
+      <div class=${'sheet' + (wide ? ' wide' : '') + (cls ? ' ' + cls : '')} role="dialog" aria-modal="true" aria-label=${title}>
         <div class="sheet-head">
           <h2>${title}</h2>
           <button class="icon-btn" aria-label="關閉" onClick=${onClose}><${Icon} name="close" size=${28} /></button>
@@ -416,7 +434,7 @@
   // 未登入：不管開哪個網址（包含 LINE 分享的記錄連結）都先看到這一頁
   function LoginScreen({ toast }) {
     return html`<main class="login">
-      <h1 class="login-title">${APP_NAME}</h1>
+      <h1 class="login-title"><${BrandLogo} />${APP_NAME}</h1>
       <p class="muted">只有管理者加入名單的 Google 帳號能登入。</p>
       <button class="btn btn-primary btn-block btn-lg" onClick=${() => toast('（Demo）正式版會跳到 Google 登入；請按上方「切換身分」選一個身分')}>
         用 Google 帳號登入
@@ -528,6 +546,11 @@
       </div>`;
   }
 
+  /** 文件名稱改過、跟原檔名不同時，旁邊用小標籤顯示原檔名 */
+  const OrigName = ({ f }) => (f.origName && f.origName !== (f.name || '').trim()
+    ? html`<span class="orig-tag" title=${f.origName}>原檔名：${f.origName}</span>`
+    : null);
+
   // ---------- 書審狀態、文件列表 ----------
   /** 書審狀態：建築師事務所直接點選切換，其他人只看得到目前狀態 */
   function StatusBlock({ rec, user, actions }) {
@@ -563,7 +586,7 @@
             ${picking
               ? html`<span class="pick-box" aria-hidden="true">${picked && html`<${Icon} name="check" size=${16} stroke=${3} />`}</span>`
               : html`<${Icon} name="file" />`}
-            <span class="file-name">${f.name}${f.diary && html` <span class="badge-diary">施工日誌</span>`}</span>
+            <span class="file-name">${f.name}${f.diary && html` <span class="badge-diary">施工日誌</span>`}<${OrigName} f=${f} /></span>
             <span class="file-meta">${docMeta(f)}</span>
           </button>
           ${!picking && html`<div class="doc-actions">
@@ -600,8 +623,8 @@
   function validate(form, catId) {
     const c = catById(catId);
     if (c.subKind === 'day') { if (!form.day) return '請選擇日期子分類'; }
-    else if (!form.date) return '請選擇資料日期';
-    if (!form.title.trim()) return '請填寫項目名稱';
+    else if (!form.date) return '請選擇檔案夾建檔日期';
+    if (!form.title.trim()) return '請填寫檔案夾名稱';
     if (c.subKind === 'list') {
       if (!form.sub) return '請選擇子分類';
       if (form.sub === '__new' && !form.newSubName.trim()) return '請填寫新子分類的名稱';
@@ -636,7 +659,7 @@
             <div class="hint">可以選今天往前 7 天</div>
           </div>`
         : html`<div class="field">
-            <label class="field-label" for="f-date">資料日期<span class="req">必填</span></label>
+            <label class="field-label" for="f-date">檔案夾建檔日期<span class="req">必填</span></label>
             <input id="f-date" type="date" class="input" value=${form.date} onInput=${onDate} onChange=${onDate} />
           </div>`}
 
@@ -652,7 +675,7 @@
       </div>`}
 
       <div class="field">
-        <label class="field-label" for="f-title">項目名稱<span class="req">必填</span></label>
+        <label class="field-label" for="f-title">檔案夾名稱<span class="req">必填</span></label>
         <input id="f-title" class="input" placeholder="例如：三樓版灌漿" value=${form.title} onInput=${e => set({ title: e.target.value })} />
       </div>
 
@@ -682,6 +705,32 @@
   </label>`;
 
   /**
+   * 上傳、修改時的文件列：第一行是名稱輸入框，清空後離開輸入框會變回原檔名；
+   * 第二行是頁數、大小，改過名稱的接著用標籤顯示原檔名，工地記錄的「施工日誌」勾選也排在這一行。
+   * @param {object} props
+   * @param {object} props.f 文件：name 是目前的名稱，origName 是原檔名
+   * @param {string} props.meta 頁數、大小
+   * @param {(id: string, name: string) => void} props.onRename
+   * @param {boolean} [props.diary] 要不要有「施工日誌」勾選
+   * @param {(id: string, v: boolean) => void} [props.onDiary]
+   * @param {(id: string) => void} [props.onRemove] 不給就沒有移除鈕
+   */
+  function PdfNameRow({ f, meta, onRename, diary, onDiary, onRemove }) {
+    return html`<li><div class=${'file-row naming' + (onRemove ? '' : ' no-remove')}>
+      <${Icon} name="file" />
+      <input class="input name-input" aria-label="文件名稱" value=${f.name}
+        onInput=${e => onRename(f.id, e.target.value)}
+        onBlur=${e => { if (!e.target.value.trim()) onRename(f.id, f.origName); }} />
+      ${onRemove && html`<button class="icon-btn file-remove" aria-label=${'移除 ' + (f.name || f.origName)} onClick=${() => onRemove(f.id)}><${Icon} name="close" /></button>`}
+      <div class="name-sub">
+        <span class="file-meta">${meta}</span>
+        <${OrigName} f=${f} />
+        ${diary && html`<${DiaryCheck} file=${f} onToggle=${onDiary} />`}
+      </div>
+    </div></li>`;
+  }
+
+  /**
    * 表單選的子分類。選「＋新增子分類」時，同名的就沿用，沒有才建新的。
    * @returns {{ id: string, created: Object|null }} created 是這次新建的子分類
    */
@@ -696,12 +745,16 @@
 
   const toPhoto = i => ({ id: i.id, label: i.label, name: i.name, url: i.url, shotAt: i.shotAt, tone: i.tone });
   const toPdf = (i, userId, at) => ({
-    id: i.id, name: i.name, size: i.size, pages: i.pages, url: i.url, uploaderId: userId, uploadedAt: at, diary: !!i.diary
+    id: i.id, name: (i.name || '').trim() || i.origName, origName: i.origName || i.name, size: i.size, pages: i.pages, url: i.url,
+    uploaderId: userId, uploadedAt: at, diary: !!i.diary
   });
+  /** 文件名稱不能空白（清空的話用原檔名） */
+  const pdfNamesOk = list => list.every(f => (f.name || '').trim() || f.origName);
 
   const editFormOf = rec => ({
     day: rec.cat === 'site' ? rec.date : '', date: rec.date, title: rec.title, tags: [...rec.tags], customTag: '',
-    note: rec.note || '', sub: rec.sub || '', newSubName: '', photos: [...rec.photos], pdfs: [...rec.pdfs], added: []
+    note: rec.note || '', sub: rec.sub || '', newSubName: '', photos: [...rec.photos],
+    pdfs: rec.pdfs.map(f => ({ ...f, origName: f.origName || f.name })), added: []
   });
 
   /**
@@ -710,14 +763,18 @@
    */
   function buildEditPatch(rec, form, user, data) {
     const fileCount = form.photos.length + form.pdfs.length + form.added.length;
-    const error = validate(form, rec.cat) || (fileCount ? '' : '至少要留一張照片或一份文件；要整筆刪除請按「刪除」');
+    const error = validate(form, rec.cat) || (fileCount ? '' : '至少要留一張照片或一份文件；要整筆刪除請按「刪除」')
+      || (pdfNamesOk([...form.pdfs, ...form.added.filter(i => i.kind === 'pdf')]) ? '' : '文件名稱不能空白');
     if (error) return { error };
     const at = nowIso();
     const c = catById(rec.cat);
     const patch = {
       date: c.subKind === 'day' ? form.day : form.date, title: form.title.trim(), tags: form.tags, note: form.note.trim(),
       photos: [...form.photos, ...form.added.filter(i => i.kind === 'photo').map(toPhoto)],
-      pdfs: [...form.pdfs, ...form.added.filter(i => i.kind === 'pdf').map(i => toPdf(i, user.id, at))],
+      pdfs: [
+        ...form.pdfs.map(f => ({ ...f, name: (f.name || '').trim() || f.origName })),
+        ...form.added.filter(i => i.kind === 'pdf').map(i => toPdf(i, user.id, at))
+      ],
       editedBy: user.id, editedAt: at
     };
     let newSub = null;
@@ -729,8 +786,11 @@
     return { patch, newSub };
   }
 
-  // 修改時增刪照片與文件（書審不用這個，文件改用「更新」）；阿美中會只能加照片
-  function EditFiles({ form, setForm, rec, user, toast }) {
+  /**
+   * 修改時增刪照片與文件、改文件名稱；阿美中會只能加照片。
+   * renameOnly：書審及材料測試不能增刪檔案（文件用「更新」換新檔），只能改文件名稱。
+   */
+  function EditFiles({ form, setForm, rec, user, toast, renameOnly }) {
     const [reading, setReading] = useState(false);
     const allowPdf = canUploadPdf(user);
     const photos = [...form.photos, ...form.added.filter(i => i.kind === 'photo')];
@@ -741,17 +801,25 @@
       pdfs: prev.pdfs.filter(x => x.id !== id),
       added: prev.added.filter(x => x.id !== id)
     }));
-    const setDiary = (id, v) => setForm(prev => ({
+    const patchPdf = (id, patch) => setForm(prev => ({
       ...prev,
-      pdfs: prev.pdfs.map(p => (p.id === id ? { ...p, diary: v } : p)),
-      added: prev.added.map(p => (p.id === id ? { ...p, diary: v } : p))
+      pdfs: prev.pdfs.map(p => (p.id === id ? { ...p, ...patch } : p)),
+      added: prev.added.map(p => (p.id === id ? { ...p, ...patch } : p))
     }));
+    const setDiary = (id, v) => patchPdf(id, { diary: v });
+    const rename = (id, name) => patchPdf(id, { name });
     const add = async files => {
       setReading(true);
       const items = await PR.readFiles(files, 'auto', { room: MAX_PHOTOS - photos.length, toast, allowPdf });
       setForm(prev => ({ ...prev, added: [...prev.added, ...items] }));
       setReading(false);
     };
+    if (renameOnly) {
+      return pdfs.length ? html`<div class="field">
+        <div class="field-label">文件 ${pdfs.length} 份</div>
+        <ul class="file-list">${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${f.size} onRename=${rename} />`)}</ul>
+      </div>` : null;
+    }
     return html`<div class="field">
       <div class="field-label">照片 ${photos.length} 張、文件 ${pdfs.length} 份</div>
       ${photos.length > 0 && html`<div class="sel-grid">
@@ -761,13 +829,8 @@
         </div>`)}
       </div>`}
       ${pdfs.length > 0 && html`<ul class="file-list">
-        ${pdfs.map(f => html`<li key=${f.id}><div class=${'file-row' + (rec.cat === 'site' ? ' has-diary' : '')}>
-          <${Icon} name="file" />
-          <span class="file-name">${f.name}</span>
-          <span class="file-meta">${f.size}</span>
-          ${rec.cat === 'site' && html`<${DiaryCheck} file=${f} onToggle=${setDiary} />`}
-          <button class="icon-btn file-remove" aria-label=${'移除 ' + f.name} onClick=${() => remove(f.id)}><${Icon} name="close" /></button>
-        </div></li>`)}
+        ${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${f.size} onRename=${rename}
+          diary=${rec.cat === 'site'} onDiary=${setDiary} onRemove=${remove} />`)}
       </ul>`}
       <label class="btn btn-outline btn-block pick-inline">
         <input type="file" multiple accept=${allowPdf ? 'image/*,application/pdf,.pdf' : 'image/*'}
@@ -897,6 +960,7 @@
     }
 
     const setDiary = (id, v) => setItems(prev => prev.map(i => (i.id === id ? { ...i, diary: v } : i)));
+    const renameItem = (id, name) => setItems(prev => prev.map(i => (i.id === id ? { ...i, name } : i)));
 
     // Demo：從設定面板「用範例照片走一次上傳」進來時，先放好範例照片
     useEffect(() => { if (preset.sample) addSamples(); }, []);
@@ -950,14 +1014,13 @@
     const resume = () => { setPaused(false); if (uploader.current) uploader.current.resume(); };
 
     return {
-      cats, presetCat, catId, setCatId, items, reading, addFiles, addSamples, removeItem, setDiary,
+      cats, presetCat, catId, setCatId, items, reading, addFiles, addSamples, removeItem, setDiary, renameItem,
       form, setForm, err, submit, phase, statuses, paused, resume, createdId, photoN, pdfN, summary
     };
   }
 
-  /** 這個身分不能選的分類，說明誰才能傳 */
   /**
-   * 已選的檔案。能傳工地記錄的帳號，在還沒選分類或選了工地記錄時，PDF 列右邊有「施工日誌」勾選
+   * 已選的檔案；文件名稱可以改。能傳工地記錄的帳號，在還沒選分類或選了工地記錄時，PDF 列右邊有「施工日誌」勾選
    * （手機版選檔在選分類之前，所以先顯示；最後選了別的分類，勾選不會生效）。
    */
   function SelectedFiles({ d }) {
@@ -978,13 +1041,8 @@
       </div>`}
       ${shrunk.length > 0 && html`<div class="hint">照片已壓縮成長邊 2480px，A5 列印也清楚：${fmtSize(before)} → ${fmtSize(after)}</div>`}
       ${pdfs.length > 0 && html`<ul class="file-list">
-        ${pdfs.map(f => html`<li key=${f.id}><div class=${'file-row' + (diary ? ' has-diary' : '')}>
-          <${Icon} name="file" />
-          <span class="file-name">${f.name}</span>
-          <span class="file-meta">${f.pages ? `${f.pages} 頁｜` : ''}${f.size}</span>
-          ${diary && html`<${DiaryCheck} file=${f} onToggle=${d.setDiary} />`}
-          <button class="icon-btn file-remove" aria-label=${'移除 ' + f.name} onClick=${() => d.removeItem(f.id)}><${Icon} name="close" /></button>
-        </div></li>`)}
+        ${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${`${f.pages ? `${f.pages} 頁｜` : ''}${f.size}`}
+          onRename=${d.renameItem} diary=${diary} onDiary=${d.setDiary} onRemove=${d.removeItem} />`)}
       </ul>`}
     </div>`;
   }
@@ -1041,7 +1099,8 @@
   }
 
   /**
-   * 分段標題裡的備註（只有工地記錄的日期子分類有）：平常是備註文字加鉛筆鈕，按鉛筆後原地換成輸入框，不跳彈窗。
+   * 分段標題裡的備註（只有工地記錄的日期子分類有）：平常是鉛筆鈕加備註文字（鉛筆在備註左邊），
+   * 按鉛筆後原地換成輸入框，「儲存」「取消」在輸入框右邊，不跳彈窗。
    * 管理者、建築師事務所、承包商都能改，不限時間。
    * @param {object} props
    * @param {object} props.g 分段
@@ -1057,9 +1116,9 @@
         onSave=${text => note.save(g.date, text)} onCancel=${() => note.edit(null)} />`;
     }
     return html`
-      ${g.note && html`<span class="grp-note-inline" title=${g.note.text}>${g.note.text}</span>`}
       ${canEditSiteNote(user) && html`<button class="icon-btn grp-edit" aria-label=${`編輯${g.label}的備註`}
-        onClick=${() => note.edit(g.date)}><${Icon} name="pencil" size=${size} /></button>`}`;
+        onClick=${() => note.edit(g.date)}><${Icon} name="pencil" size=${size} /></button>`}
+      ${g.note && html`<span class="grp-note-inline" title=${g.note.text}>${g.note.text}</span>`}`;
   }
 
   // ---------- 面板 ----------
@@ -1075,9 +1134,7 @@
   }
 
   function DeleteSheet({ rec, user, onClose, onConfirm }) {
-    return html`<${Sheet} title="確定刪除這筆記錄？" onClose=${onClose}>
-      <p>「${rec.title}」刪除後，所有人都看不到。</p>
-      <p class="muted">${isAdmin(user) ? '刪除後會移到回收區，之後還可以從後台救回。' : '刪除後只有管理者能救回。'}</p>
+    return html`<${Sheet} title="確認刪除這筆記錄" onClose=${onClose}>
       <button class="btn btn-danger btn-block btn-lg" onClick=${onConfirm}>確定刪除</button>
       <button class="btn btn-outline btn-block" onClick=${onClose}>取消</button>
     <//>`;
@@ -1158,17 +1215,17 @@
 
   Object.assign(PR, {
     html, D, APP_NAME, NOW, nowIso, MAX_PHOTOS, MAX_PDF_BYTES, RECENT_KEYWORDS, GUEST, DEFAULT_FILTERS, LOG_ACTIONS, ROLES, ROLE_IDS, STATUS,
-    pad, uid, toggle, fmtSize, ymd, dt, isoDate, monthLabel, addDays, today, recentDays, siteSubName, billingName, fromLabel,
+    pad, uid, toggle, fmtSize, ymd, dt, isoDate, monthLabel, addDays, today, recentDays, siteSubName, billingRange, billingName, fromLabel,
     syncUsers, userById, catById, subList, subLabel, roleName,
-    isAdmin, canUpload, canUploadCat, canUploadPdf, canToggleStatus, canManageSubcats, canEditSiteNote, canBilling,
+    isAdmin, canUpload, canUploadCat, canUploadPdf, canToggleStatus, canManageSubcats, canEditSiteNote, canBilling, canApproveBilling,
     editLeftHours, canEdit, canDelete, canEditFiles, canUpdateDoc, leftText, editNote,
     countText, byLine, docMeta, photoName, recordLink,
     byDateDesc, filtersActive, filterRecords, recentKeywords, groupFor, groupCount, useGroupOpen,
-    parseHash, logEntry, initialData, initialUsers,
-    Icon, Photo, TopBar, useBodyLock, useEscape, Sheet, DemoBar, DisabledScreen, LoginScreen, Lightbox, PdfViewer,
+    parseHash, logEntry, updateDocDetail, initialData, initialUsers,
+    Icon, Photo, BrandLogo, TopBar, useBodyLock, useEscape, Sheet, DemoBar, DisabledScreen, LoginScreen, Lightbox, PdfViewer,
     StatusBlock, DocList, DateRange,
     validate, Fields, editFormOf, buildEditPatch, EditFiles, toPhoto, toPdf,
     useUploadDraft, SelectedFiles, UploadProgress,
-    SiteNote, ShareSheet, DeleteSheet, PurgeSheet, AddAccountSheet, DemoSheet
+    SiteNote, ShareSheet, DeleteSheet, PurgeSheet, AddAccountSheet, DemoSheet, OrigName
   });
 })();

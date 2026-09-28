@@ -5,12 +5,12 @@
   const PR = window.PR;
   if (!PR || PR.bootFailed) return;
 
-  const { useState } = window.preactHooks;
+  const { useState, useRef } = window.preactHooks;
   const {
     html, D, APP_NAME, DEFAULT_FILTERS, STATUS, uid, ymd, dt, userById, catById, subList, subLabel, roleName,
     isAdmin, canUpload, canUploadPdf, canManageSubcats, canEdit, canDelete, canEditFiles,
     countText, byLine, filtersActive, filterRecords, recentKeywords, groupFor, groupCount, useGroupOpen,
-    Icon, Photo, StatusBlock, DocList, DateRange, SiteNote,
+    Icon, Photo, BrandLogo, StatusBlock, DocList, DateRange, SiteNote,
     Fields, EditFiles, editFormOf, buildEditPatch, useUploadDraft, SelectedFiles, UploadProgress
   } = PR;
 
@@ -20,7 +20,7 @@
   function DesktopShell({ user, route, actions, children }) {
     const onRecords = ['home', 'record', 'edit'].includes(route.name);
     const nav = [
-      { label: '記錄項目', hash: '#/', on: onRecords },
+      { label: '檔案夾', hash: '#/', on: onRecords },
       { label: '請款', hash: '#/billing', on: route.name === 'billing' }
     ];
     const manage = [
@@ -31,7 +31,7 @@
       onClick=${e => { e.preventDefault(); actions.nav(hash); }}>${label}</a>`;
     return html`<div class="d-shell">
       <header class="d-head">
-        <div class="d-brand">${APP_NAME}</div>
+        <div class="d-brand"><${BrandLogo} />${APP_NAME}</div>
         <div class="d-user">${user.name}｜${roleName(user.role)}</div>
       </header>
       <div class="d-body">
@@ -54,7 +54,7 @@
     </div>`;
   }
 
-  // ---------- 記錄項目：可收合的分段 ----------
+  // ---------- 檔案夾：可收合的分段 ----------
   // 分段列：月份深色底、子分類淺灰底（kind 由分組時決定）；工地記錄的日期子分類，備註排同一行，按鉛筆直接在這裡改
   function GroupRow({ g, level, cols, open, onToggle, user, note }) {
     return html`<tr class=${`d-group-row lv${level} kind-${g.kind}`}>
@@ -72,20 +72,20 @@
   }
 
   /**
-   * 列表的一筆。上方分頁已經選了大分類時不再顯示大分類；工地記錄分頁的日期由子分類表示，不顯示日期欄。
-   * 關鍵字用小標籤排在名稱後面。
+   * 列表的一筆：最前面是檔案夾建檔日期。上方分頁已經選了大分類時不再顯示大分類；
+   * 書審狀態只標「通過」，處理中的不標。關鍵字用小標籤排在名稱後面。
    */
-  function RecRow({ r, depth, selId, onSelect, compact, showCat, showDate, dl }) {
+  function RecRow({ r, depth, selId, onSelect, compact, showCat, dl }) {
     const cat = catById(r.cat);
     const picked = dl.on ? dl.countFor(r.id) : 0;
     return html`<tr class=${'d-row depth-' + depth + (selId === r.id ? ' on' : '')} tabIndex="0" aria-selected=${selId === r.id}
       onClick=${() => onSelect(r.id)} onKeyDown=${rowKeys(() => onSelect(r.id))}>
-      ${showDate && html`<td class="c-nowrap c-date">${ymd(r.date)}</td>`}
+      <td class="c-nowrap c-date">${ymd(r.date)}</td>
       <td class="c-name">
         <div class="c-name-line">
           ${showCat && html`<span class="chip">${cat.short}</span>`}
           <span class="c-title">${r.title}</span>
-          ${cat.status && html`<span class=${'st ' + STATUS[r.status].cls}>${STATUS[r.status].label}</span>`}
+          ${r.status === 'pass' && html`<span class=${'st ' + STATUS.pass.cls}>${STATUS.pass.label}</span>`}
           ${r.tags.map(t => html`<span class="kw">${t}</span>`)}
           ${picked > 0 && html`<span class="badge-picked">已選 ${picked}</span>`}
         </div>
@@ -96,11 +96,11 @@
     </tr>`;
   }
 
-  function RecordTable({ recs, groups, isOpen, flip, user, selId, onSelect, compact, showCat, showDate, dl, note }) {
-    const cols = (showDate ? 1 : 0) + (compact ? 1 : 3);
+  function RecordTable({ recs, groups, isOpen, flip, user, selId, onSelect, compact, showCat, dl, note }) {
+    const cols = compact ? 2 : 4;
     const rows = [];
     const rec = (r, depth) => rows.push(html`<${RecRow} key=${r.id} r=${r} depth=${depth} selId=${selId}
-      onSelect=${onSelect} compact=${compact} showCat=${showCat} showDate=${showDate} dl=${dl} />`);
+      onSelect=${onSelect} compact=${compact} showCat=${showCat} dl=${dl} />`);
     const head = (g, level) => rows.push(html`<${GroupRow} key=${'g' + g.key} g=${g} level=${level} cols=${cols}
       open=${isOpen(g.key)} onToggle=${() => flip(g.key)} user=${user} note=${note} />`);
     if (!groups) recs.forEach(r => rec(r, 0));
@@ -113,24 +113,26 @@
             head(c, 1);
             if (isOpen(c.key)) c.recs.forEach(r => rec(r, 2));
           });
-        } else g.recs.forEach(r => rec(r, 1));
+        } else if (g.recs.length) g.recs.forEach(r => rec(r, 1));
+        else rows.push(html`<tr key=${'e' + g.key} class="d-empty-row"><td colspan=${cols}>沒有檔案夾</td></tr>`);
       });
     }
-    return html`<table class=${'d-table fixed' + (compact ? ' compact' : '')}>
+    const depth = groups ? (groups.some(g => g.children) ? 2 : 1) : 0;
+    return html`<table class=${`d-table fixed depth${depth}` + (compact ? ' compact' : '')}>
       <thead><tr>
-        ${showDate && html`<th class="w-date">資料日期</th>`}<th>名稱</th>
+        <th class="w-date">檔案夾建檔日期</th><th>檔案夾名稱</th>
         ${!compact && html`<th class="w-by">上傳者</th><th class="w-count">內容</th>`}
       </tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
   }
 
-  // 照片牆：跟列表同樣的分段；下載模式時點照片是勾選
-  function PhotoWall({ recs, groups, isOpen, flip, selId, onSelect, actions, dl, user, note, showDate }) {
+  // 照片牆：跟列表同樣的分段（只列有照片的）；下載模式時點照片是勾選
+  function PhotoWall({ recs, groups, isOpen, flip, selId, onSelect, actions, dl, user, note }) {
     const withPhotos = list => list.filter(r => r.photos.length);
     const block = r => html`<div class=${'d-wall-rec' + (selId === r.id ? ' on' : '')} key=${r.id}>
       <button class="d-wall-head" onClick=${() => onSelect(r.id)}>
-        ${showDate && html`<span class="date">${ymd(r.date)}</span>`}<span>${r.title}</span><span class="meta">${r.photos.length} 張</span>
+        <span class="date">${ymd(r.date)}</span><span>${r.title}</span><span class="meta">${r.photos.length} 張</span>
       </button>
       <div class="d-wall-grid">
         ${r.photos.map((p, i) => {
@@ -178,14 +180,17 @@
     const note = { date: noteDate, edit: setNoteDate, save: (date, text) => { actions.setSiteNote(date, text); setNoteDate(null); } };
     const setF = patch => setFilters({ ...filters, ...patch });
     const recs = filterRecords(data.records, filters, data);
-    const groups = groupFor(filters.cat, recs, data);
+    const groups = groupFor(filters.cat, recs, data, !filtersActive(filters));
     const { isOpen, flip } = useGroupOpen(groups, filtersActive(filters));
-    const active = filters.cat !== 'all' || filtersActive(filters);
+    // 清除條件只清搜尋、日期、關鍵字，留在當下的大分類；只切了大分類時不算有條件
+    const active = filtersActive(filters);
+    const clearFilters = () => setFilters({ ...DEFAULT_FILTERS, cat: filters.cat });
     const selId = route.name === 'record' || route.name === 'edit' ? route.id : null;
     const sel = selId && data.records.find(r => r.id === selId);
     const select = id => actions.replace('#/record/' + id);
 
-    // 下載模式：跨項目勾選檔案，最後打包成一個 zip
+    // 下載模式：跨檔案夾、跨分類勾選檔案，最後打包成一個 zip；結束時回到按「一次下載多個檔案」之前的畫面
+    const before = useRef(null);
     const keyOf = (recId, fileId) => `${recId}:${fileId}`;
     const dl = {
       on: dlMode,
@@ -219,12 +224,26 @@
       try {
         await PR.downloadZip(items, `阿美中會工地記錄_${items.length}個檔案.zip`, (done, total) => setZipping({ done, total }));
         actions.toast(`已打包 ${items.length} 個檔案`);
+        setZipping(null);
+        endDl();
       } catch (e) {
         actions.toast(e.message || '打包失敗，請再試一次');
+        setZipping(null);
       }
-      setZipping(null);
     };
-    const endDl = () => { setDlMode(false); setPicked({}); };
+    const startDl = () => { before.current = { selId, filters, view }; setDlMode(true); };
+    /** 結束下載模式（按「結束多檔下載」或下載完成）：分類、篩選、顯示方式和側窗都回到開始之前的樣子 */
+    const endDl = () => {
+      setDlMode(false);
+      setPicked({});
+      const b = before.current;
+      before.current = null;
+      if (!b) return;
+      setFilters(b.filters);
+      setView(b.view);
+      const hash = b.selId ? '#/record/' + b.selId : '#/';
+      if (location.hash !== hash) actions.replace(hash);
+    };
     const kwOptions = recentKeywords(data).filter(t => !filters.tags.includes(t));
 
     return html`<div class=${'d-page d-split' + (sel ? ' has-detail' : '')}>
@@ -238,7 +257,7 @@
             <div class="d-filter-row">
               <div class="search d-search">
                 <${Icon} name="search" />
-                <input type="search" aria-label="關鍵字搜尋" placeholder="搜尋名稱、關鍵字、備註、上傳者" value=${filters.q}
+                <input type="search" aria-label="關鍵字搜尋" placeholder="搜尋檔案夾、關鍵字、備註、上傳者" value=${filters.q}
                   onInput=${e => setF({ q: e.target.value })} />
               </div>
               <${DateRange} compact from=${filters.from} to=${filters.to} onChange=${setF} />
@@ -258,16 +277,16 @@
                 <button class=${view === 'photos' ? 'on' : ''} aria-pressed=${view === 'photos'} onClick=${() => setView('photos')}>照片</button>
               </div>
               <span>找到 ${recs.length} 筆</span>
-              ${active && html`<button class="link-btn" onClick=${() => setFilters(DEFAULT_FILTERS)}>清除條件</button>`}
+              ${active && html`<button class="link-btn" onClick=${clearFilters}>清除條件</button>`}
               <div class="d-result-tools">
                 <button class=${'btn btn-outline sm' + (dlMode ? ' on' : '')} aria-pressed=${dlMode}
-                  onClick=${() => (dlMode ? endDl() : setDlMode(true))}><${Icon} name="download" size=${20} />${dlMode ? '結束多檔下載' : '一次下載多個檔案'}</button>
+                  onClick=${() => (dlMode ? endDl() : startDl())}><${Icon} name="download" size=${20} />${dlMode ? '結束多檔下載' : '一次下載多個檔案'}</button>
               </div>
             </div>
             ${dlMode && html`<div class="d-dlbar" role="status">
               <span>${zipping
                 ? `正在打包 ${zipping.done} / ${zipping.total} 個檔案…`
-                : pickedN ? `已選 ${pickedN} 個檔案` : '點任一筆記錄項目，再勾選右邊的照片或文件；可以跨好幾筆一起選'}</span>
+                : pickedN ? `已選 ${pickedN} 個檔案` : '點任一筆檔案夾，再勾選右邊的照片或文件；可以跨不同檔案夾、分類一起選'}</span>
               <div class="d-dlbar-actions">
                 ${pickedN > 0 && !zipping && html`<button class="link-btn" onClick=${() => setPicked({})}>清除</button>`}
                 <button class="btn btn-primary sm" disabled=${!pickedN || !!zipping} onClick=${download}>
@@ -278,14 +297,13 @@
           </div>
         </div>
         <div class="d-scroll">
-          ${recs.length === 0
-            ? html`<div class="empty"><p>沒有符合的記錄</p>${active && html`<button class="btn btn-outline" onClick=${() => setFilters(DEFAULT_FILTERS)}>清除條件</button>`}</div>`
+          ${recs.length === 0 && !(groups && groups.length)
+            ? html`<div class="empty"><p>沒有符合的檔案夾</p>${active && html`<button class="btn btn-outline" onClick=${clearFilters}>清除條件</button>`}</div>`
             : view === 'table'
               ? html`<${RecordTable} recs=${recs} groups=${groups} isOpen=${isOpen} flip=${flip} user=${user}
-                  selId=${selId} onSelect=${select} compact=${!!sel} showCat=${filters.cat === 'all'} showDate=${filters.cat !== 'site'}
-                  dl=${dl} note=${note} />`
+                  selId=${selId} onSelect=${select} compact=${!!sel} showCat=${filters.cat === 'all'} dl=${dl} note=${note} />`
               : html`<${PhotoWall} recs=${recs} groups=${groups} isOpen=${isOpen} flip=${flip} selId=${selId} onSelect=${select}
-                  actions=${actions} dl=${dl} user=${user} note=${note} showDate=${filters.cat !== 'site'} />`}
+                  actions=${actions} dl=${dl} user=${user} note=${note} />`}
         </div>
       </section>
       ${sel && html`<aside class="d-detail-col" aria-label="詳細資料">
@@ -327,9 +345,9 @@
 
     if (editing) {
       return html`<div class="d-detail">
-        <h2 class="d-detail-title">修改資料</h2>
+        <h2 class="d-detail-title">修改檔案夾</h2>
         <${Fields} form=${form} setForm=${setForm} catId=${rec.cat} user=${user} data=${data} extraDay=${rec.cat === 'site' ? rec.date : ''} />
-        ${canEditFiles(user, rec) && html`<${EditFiles} form=${form} setForm=${setForm} rec=${rec} user=${user} toast=${actions.toast} />`}
+        <${EditFiles} form=${form} setForm=${setForm} rec=${rec} user=${user} toast=${actions.toast} renameOnly=${!canEditFiles(user, rec)} />
         ${err && html`<div class="notice error">${err}</div>`}
         <div class="btn-row">
           <button class="btn btn-primary" onClick=${save}>儲存</button>
@@ -359,7 +377,7 @@
       ${picking
         ? html`<div class="d-actions">
             <button class="btn btn-outline sm" onClick=${() => dl.setAll(rec, pickedHere < fileN)}>
-              ${pickedHere < fileN ? `全選這筆（${fileN} 個檔案）` : '取消這筆的勾選'}
+              ${pickedHere < fileN ? `全選這個檔案夾（${fileN} 個檔案）` : '取消這個檔案夾的勾選'}
             </button>
           </div>`
         : html`<div class="d-actions">
@@ -436,7 +454,7 @@
                 ? html`<input class="input sub-rename" aria-label=${s.name + ' 的新名稱'} value=${editing.name}
                     onInput=${e => setEditing({ ...editing, name: e.target.value })}
                     onKeyDown=${e => { if (e.key === 'Enter') rename(); if (e.key === 'Escape') setEditing(null); }} />`
-                : html`<span class="tag-name">${s.name}<span class="tag-use">${n ? `${n} 筆記錄` : '還沒有記錄'}</span></span>`}
+                : html`<span class="tag-name">${s.name}<span class="tag-use">${n ? `${n} 個檔案夾` : '還沒有檔案夾'}</span></span>`}
               ${isEditing
                 ? html`<button class="btn btn-primary sm" onClick=${rename}>儲存</button>
                     <button class="btn btn-outline sm" onClick=${() => setEditing(null)}>取消</button>`
@@ -444,7 +462,7 @@
                     <button class="icon-btn sm" aria-label=${s.name + ' 往上移'} disabled=${i === 0} onClick=${() => move(i, -1)}><${Icon} name="up" /></button>
                     <button class="icon-btn sm" aria-label=${s.name + ' 往下移'} disabled=${i === list.length - 1} onClick=${() => move(i, 1)}><${Icon} name="down" /></button>
                     ${n > 0
-                      ? html`<span class="tip" tabIndex="0" data-tip="有記錄使用此分類，無法刪除" aria-label="有記錄使用此分類，無法刪除">
+                      ? html`<span class="tip" tabIndex="0" data-tip="有檔案夾使用此分類，無法刪除" aria-label="有檔案夾使用此分類，無法刪除">
                           <button class="btn btn-outline sm danger" disabled>移除</button>
                         </span>`
                       : html`<button class="btn btn-outline sm danger"
@@ -479,7 +497,7 @@
         <div class="done-title">上傳完成</div>
         <p class="done-sub">已存到「${catById(d.catId).name}」，共 ${d.summary}</p>
         <div class="btn-row">
-          <button class="btn btn-primary" onClick=${() => actions.replace('#/record/' + d.createdId)}>查看這筆記錄</button>
+          <button class="btn btn-primary" onClick=${() => actions.replace('#/record/' + d.createdId)}>查看這個檔案夾</button>
           <button class="btn btn-outline" onClick=${() => actions.copyLink(d.createdId)}>複製分享連結</button>
           <button class="btn btn-outline" onClick=${actions.again}>再傳一批</button>
         </div>

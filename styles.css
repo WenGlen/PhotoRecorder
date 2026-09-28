@@ -228,6 +228,9 @@ input[type="checkbox"] { accent-color: var(--primary); }
 .topbar-title { flex: 1; font-size: 20px; font-weight: 700; }
 .topbar-title:first-child { padding-left: 8px; }
 
+/* ---------- 平台 logo（排在平台名稱左邊） ---------- */
+.brand-logo { flex: none; width: 36px; height: 36px; object-fit: contain; }
+
 /* ---------- 手機首頁 ---------- */
 .home-head {
   display: flex;
@@ -237,7 +240,8 @@ input[type="checkbox"] { accent-color: var(--primary); }
   gap: 12px;
   padding: 20px 16px 4px;
 }
-.app-name { font-size: 28px; font-weight: 700; line-height: 1.3; }
+/* 平台名稱左邊是 logo：360px 寬的手機剛好放得下 28px 的字，更窄的手機字級跟著縮，名稱不斷行 */
+.app-name { display: flex; align-items: center; gap: 8px; font-size: min(28px, calc((100vw - 76px) / 10)); font-weight: 700; line-height: 1.3; }
 .who { color: var(--text-2); }
 
 .m-sec { display: grid; gap: 12px; padding: 24px 16px 0; }
@@ -347,7 +351,8 @@ input[type="checkbox"] { accent-color: var(--primary); }
 .grp-label { min-width: 0; overflow-wrap: anywhere; }
 .grp-n { color: var(--text-3); font-size: 16px; font-weight: 400; white-space: nowrap; }
 .group-head.lv1 .grp-toggle { font-size: 17px; font-weight: 500; }
-.grp-edit { flex: none; width: 44px; height: 44px; margin-left: auto; }
+/* 備註的鉛筆：緊接在「N 筆」後面、備註文字的左邊 */
+.grp-edit { flex: none; width: 44px; height: 44px; }
 /* 日期子分類的備註：跟子分類名稱排同一行，太長就截斷（滑鼠移上去看全文）；
    子分類名稱不壓縮（壓縮一點點就會斷行），空間不夠時只截斷備註 */
 .grp-note-inline { flex: 1 1 auto; min-width: 0; overflow: hidden; color: var(--text-2); font-size: 15px; text-overflow: ellipsis; white-space: nowrap; }
@@ -365,6 +370,8 @@ input[type="checkbox"] { accent-color: var(--primary); }
 .group-head .grp-note-edit .btn { flex: 1 1 0; }
 .group-head .grp-note-edit .input, .group-head .grp-note-edit .btn { min-height: 44px; }
 .m-subgroup .list { padding-left: 32px; }
+/* 設定了、但還沒有檔案夾的子分類：展開後只有一行說明 */
+.grp-empty { margin: 0; padding: 12px 16px 16px 48px; color: var(--text-3); }
 .list { display: grid; gap: 12px; padding: 8px 16px 16px; }
 .pad-x { padding: 12px 16px 0; }
 .empty { display: grid; justify-items: center; gap: 12px; padding: 40px 16px; color: var(--text-2); text-align: center; }
@@ -598,6 +605,32 @@ button.file-row:hover { background: var(--page); border-color: var(--border-2); 
   cursor: pointer;
 }
 .diary-inline input { width: 20px; height: 20px; margin: 0; }
+/* 上傳、修改時的文件列：第一行是名稱輸入框（手機上也夠寬），第二行是頁數、原檔名標籤、施工日誌勾選 */
+.file-row.naming { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 4px; }
+.file-row.naming > .icon { grid-row: 1 / span 2; }
+.file-row.naming .name-input { grid-column: 2; grid-row: 1; min-width: 0; min-height: 44px; padding: 0 12px; font-size: 16px; font-weight: 500; }
+.file-row.naming .file-remove { grid-column: 3; grid-row: 1; }
+.file-row.naming.no-remove .name-input { grid-column: 2 / -1; }
+.name-sub { grid-column: 2 / -1; grid-row: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; min-width: 0; }
+.name-sub .file-meta { grid-column: auto; }
+.name-sub .diary-inline { grid-row: auto; grid-column: auto; min-height: 36px; margin-left: auto; }
+/* 原檔名：太長就截斷，滑鼠移上去看全名 */
+.orig-tag {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-2);
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 24px;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.file-name .orig-tag { margin-left: 8px; }
 
 /* 記錄裡的 PDF：上面是可以點開預覽的列，下面是下載／更新 */
 .doc { border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--bg); overflow: hidden; }
@@ -835,6 +868,8 @@ button.file-row:hover { background: var(--page); border-color: var(--border-2); 
   font-weight: 500;
 }
 .readonly .hint { font-weight: 400; }
+/* 鎖住不能改的欄位（例如請款接在前一期之後的開始日期）：跟唯讀欄位同樣的灰底 */
+.input:disabled { border-color: var(--border); background: var(--page); color: var(--text-2); cursor: not-allowed; opacity: 1; }
 .inline-add { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 
 /* 日期一律用瀏覽器內建的日期欄（西元，點一下就有日期選單） */
@@ -1010,4 +1045,4 @@ input[type="date"].input::-webkit-calendar-picker-indicator { cursor: pointer; }
 
 /* ---------- 未登入 ---------- */
 .login { display: grid; gap: 16px; max-width: 420px; margin: 0 auto; padding: 64px 24px; text-align: center; }
-.login-title { font-size: 28px; line-height: 1.4; }
+.login-title { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: min(28px, calc((100vw - 92px) / 10)); line-height: 1.4; }

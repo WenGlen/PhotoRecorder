@@ -14,7 +14,8 @@
   background: var(--bg);
   border-bottom: 1px solid var(--border);
 }
-.d-brand { font-size: 26px; font-weight: 700; line-height: 1.3; white-space: nowrap; }
+.d-brand { display: flex; align-items: center; gap: 12px; font-size: 26px; font-weight: 700; line-height: 1.3; white-space: nowrap; }
+.d-brand .brand-logo { width: 40px; height: 40px; }
 .d-user { margin-left: auto; color: var(--text-2); white-space: nowrap; }
 .d-head .btn { min-height: 44px; font-size: 16px; }
 
@@ -137,6 +138,9 @@
 /* 記錄表格固定欄寬，名稱欄吃剩下的寬度，不會被長的上傳者文字擠窄 */
 .d-table.fixed { table-layout: fixed; }
 .d-table.fixed .w-date { width: 124px; }
+/* 日期欄在最前面、跟著分段往右縮排，所以分段越多層，日期欄要越寬 */
+.d-table.fixed.depth1 .w-date { width: 140px; }
+.d-table.fixed.depth2 .w-date { width: 164px; }
 .d-table.fixed .w-by { width: 200px; }
 .d-table.fixed .w-count { width: 120px; }
 .d-table th {
@@ -171,6 +175,7 @@
 .d-group-n { margin-left: 8px; color: var(--text-3); font-size: 14px; font-weight: 400; }
 .d-row.depth-1 > td:first-child { padding-left: 40px; }
 .d-row.depth-2 > td:first-child { padding-left: 64px; }
+.d-empty-row td { padding: 10px 12px 10px 40px; color: var(--text-3); font-size: 15px; }
 .c-note { margin-top: 6px; color: var(--text-2); font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
 /* 關鍵字：小標籤排在名稱後面 */
 .kw {
@@ -287,6 +292,10 @@ tr.is-off td { color: var(--text-3); }
   transition: opacity var(--ease), transform var(--ease);
 }
 .tip:hover::after, .tip:focus-visible::after { opacity: 1; transform: none; }
+/* 按鈕上方沒有空間時（例如頁面最上面），提示改放下方 */
+.tip-below::after { top: calc(100% + 8px); bottom: auto; transform: translateY(-4px); }
+/* 按鈕在側窗左邊時，提示往右展開，免得被側窗切掉 */
+.tip-start::after { left: 0; right: auto; }
 
 /* ---------- 請款 ---------- */
 .bill-sec { padding-top: 16px; border-top: 1px solid var(--border); }
@@ -296,6 +305,16 @@ tr.is-off td { color: var(--text-3); }
 .bill-photo figcaption { color: var(--text-2); font-size: 15px; line-height: 1.4; }
 .bill-photo .cap-date { white-space: nowrap; }
 .bill-photo .cap-item { display: inline-block; }
+.bill-photo .btn.sm { justify-self: start; min-height: 36px; padding: 0 10px; font-size: 15px; }
+.bill-photo .appr { justify-self: start; }
+/* 審核完成：綠色標籤；文件列上後面接審核的人和時間，排在下載等按鈕的左邊 */
+.appr { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
+.appr-by { color: var(--text-2); font-size: 14px; }
+.doc-actions { align-items: center; }
+.doc-actions .appr { margin-right: auto; }
+/* 請款照片整區的審核：排在照片下面；審核完成後這裡改成「審核完成」和審核的人、時間 */
+.bill-photos-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
+.bill-photos-foot .appr { margin-right: auto; }
 /* 請款列表：項目名稱底下列出檔案，一個檔案一顆小按鈕、排成一串，點了直接預覽 */
 .bill-name { font-weight: 700; }
 .bill-name .st { margin-left: 8px; vertical-align: 1px; }
@@ -352,6 +371,7 @@ tr.is-off td { color: var(--text-3); }
 .entry-doc .icon { flex: none; color: var(--text-3); }
 .entry-main { display: grid; gap: 8px; min-width: 0; }
 .entry-src { min-height: 20px; color: var(--text-3); font-size: 14px; }
+.entry-name { display: flex; align-items: center; min-height: 52px; font-weight: 500; overflow-wrap: anywhere; }
 .entry-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .picker { display: grid; gap: 16px; }
 .picker-bar { display: grid; gap: 8px; }
@@ -370,6 +390,7 @@ tr.is-off td { color: var(--text-3); }
   box-shadow: 0 16px 48px rgba(15, 23, 42, 0.2);
 }
 .d-app .sheet.wide { max-width: 960px; }
+.d-app .sheet.wide.two-thirds { max-width: 640px; }
 .d-app .sheet-body { padding: 20px 28px 28px; }
 .d-app .modal { inset: 32px; }
 .d-app .pdfv-inner { max-width: 800px; }
@@ -378,8 +399,9 @@ tr.is-off td { color: var(--text-3); }
 /* ---------- 後台：獨立網址、深色頂端列，一眼就知道不是一般平台 ---------- */
 .bs-head { background: #0f172a; border-bottom-color: #0f172a; color: #ffffff; }
 .bs-head .d-user { color: #cbd5e1; }
+/* 後台頂端是深色：logo 墊一塊白色圓角底，線條才看得清楚 */
+.bs-head .brand-logo { box-sizing: border-box; padding: 3px; border-radius: 8px; background: #ffffff; }
 .bs-tag {
-  margin-left: 12px;
   padding: 0 10px;
   border-radius: var(--radius-sm);
   background: #fbbf24;

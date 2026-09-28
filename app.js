@@ -13,7 +13,7 @@
   const { useState, useEffect, useRef } = window.preactHooks;
   const {
     html, DEFAULT_FILTERS, GUEST, STATUS, uid, nowIso, syncUsers, catById, roleName, countText, recordLink,
-    siteSubName, billingName, isAdmin, canUpload, canEdit, canManageSubcats, parseHash, logEntry, initialData, initialUsers,
+    siteSubName, billingName, isAdmin, canUpload, canEdit, canManageSubcats, parseHash, logEntry, updateDocDetail, initialData, initialUsers,
     DemoBar, DisabledScreen, LoginScreen, Lightbox, PdfViewer,
     ShareSheet, DeleteSheet, PurgeSheet, AddAccountSheet, DemoSheet,
     MobileHome, MobileUploadBar, MobileRecord, MobileUpload, MobileEdit, MobileBlocked,
@@ -22,9 +22,11 @@
   } = PR;
 
   const DESKTOP_MIN = 1024;
-  const EDIT_FIELDS = [['date', '日期'], ['title', '名稱'], ['sub', '子分類'], ['tags', '關鍵字'], ['note', '備註'], ['photos', '照片'], ['pdfs', '文件']];
-  // 照片、文件比對有哪幾個檔案，以及哪些勾了施工日誌
-  const fieldValue = (key, v) => (key === 'photos' || key === 'pdfs' ? (v || []).map(x => `${x.id}${x.diary ? '*' : ''}`) : v ?? '');
+  const EDIT_FIELDS = [['date', '日期'], ['title', '檔案夾名稱'], ['sub', '子分類'], ['tags', '關鍵字'], ['note', '備註'], ['photos', '照片'], ['pdfs', '文件']];
+  // 照片、文件比對有哪幾個檔案、哪些勾了施工日誌，文件還要比對名稱（改名也算修改）
+  const fieldValue = (key, v) => (key === 'photos' || key === 'pdfs'
+    ? (v || []).map(x => `${x.id}${key === 'pdfs' ? `:${x.name}` : ''}${x.diary ? '*' : ''}`)
+    : v ?? '');
   // 手機版有自己畫面的路由；其他（包含桌機才有的頁面）都顯示首頁，底部上傳鈕照常出現
   const MOBILE_SCREENS = ['record', 'edit', 'upload', 'backstage'];
   const isMobileHome = route => !MOBILE_SCREENS.includes(route.name);
@@ -126,7 +128,7 @@
         if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(link).then(done, () => toast(`請手動複製：${link}`));
         else toast(`請手動複製：${link}`);
       },
-      // 一筆記錄的所有照片與文件打包成 zip
+      // 一個檔案夾的所有照片與文件打包成 zip（文件用改過的名稱）
       async zipRecord(rec) {
         const items = [...rec.photos.map(file => ({ file, kind: 'photo' })), ...rec.pdfs.map(file => ({ file, kind: 'pdf' }))];
         toast(`正在打包 ${items.length} 個檔案…`);
@@ -179,7 +181,7 @@
         }));
         toast(`「${rec.title}」已改成${STATUS[to].label}`);
       },
-      // 書審文件「更新」：新檔直接取代舊檔，更新的人和時間記在文件上，也進操作記錄
+      // 書審文件「更新」：新檔直接取代舊檔的內容，文件名稱不變，原檔名換成新檔的檔名；更新的人和時間記在文件上，也進操作記錄
       async updateDoc(recId, pdfId, file) {
         if (!file) return;
         const rec = data.records.find(r => r.id === recId);
@@ -187,13 +189,13 @@
         if (!old) return;
         const [it] = await PR.readFiles([file], 'pdf', { room: 0, toast });
         if (!it) return;
-        const next = { name: it.name, size: it.size, pages: it.pages, url: it.url, uploaderId: user.id, uploadedAt: nowIso() };
+        const next = { origName: it.origName, size: it.size, pages: it.pages, url: it.url, uploaderId: user.id, uploadedAt: nowIso() };
         setData(d => ({
           ...d,
           records: d.records.map(r => (r.id === recId ? { ...r, pdfs: r.pdfs.map(p => (p.id === pdfId ? { ...p, ...next } : p)) } : r)),
-          log: [logEntry(user.id, '更新文件', rec.title, `${old.name} 換成 ${it.name}`), ...d.log]
+          log: [logEntry(user.id, '更新文件', rec.title, updateDocDetail(old.name, it.origName)), ...d.log]
         }));
-        toast(`已更新「${it.name}」`);
+        toast(`已更新「${old.name}」的內容`);
       },
       // 工地記錄日期子分類的備註：清空就是刪掉備註
       setSiteNote(date, text) {
@@ -251,8 +253,11 @@
       },
       // ---------- 請款 ----------
       addBilling(info) {
-        const b = { id: uid('b'), ...info, createdBy: user.id, createdAt: nowIso(), merged: null, quotes: [], photos: [], docs: [], others: [], done: null };
-        setData(d => ({ ...d, billing: [...d.billing, b], log: [logEntry(user.id, '請款', billingName(b), '建立請款項目'), ...d.log] }));
+        const b = {
+          id: uid('b'), ...info, createdBy: user.id, createdAt: nowIso(),
+          merged: null, quotes: [], photos: [], photosApproved: null, docs: [], others: [], done: null
+        };
+        setData(d => ({ ...d, billing: [...d.billing, b], log: [logEntry(user.id, '請款', billingName(b), '新增一期請款'), ...d.log] }));
         toast(`已建立「${billingName(b)}」`);
         return b.id;
       },
@@ -404,11 +409,11 @@
       const rec = data.records.find(r => r.id === route.id);
       screen = rec
         ? html`<${MobileRecord} ...${common} rec=${rec} />`
-        : html`<${MobileBlocked} title="記錄內容" message="這筆記錄已經刪除或不存在。" onBack=${actions.back} />`;
+        : html`<${MobileBlocked} title="檔案夾內容" message="這個檔案夾已經刪除或不存在。" onBack=${actions.back} />`;
     } else if (route.name === 'edit') {
       const rec = data.records.find(r => r.id === route.id);
-      if (!rec) screen = html`<${MobileBlocked} title="修改資料" message="這筆記錄已經刪除或不存在。" onBack=${actions.back} />`;
-      else if (!canEdit(user, rec)) screen = html`<${MobileBlocked} title="修改資料" message="你沒有權限修改這筆記錄。" onBack=${actions.back} />`;
+      if (!rec) screen = html`<${MobileBlocked} title="修改檔案夾" message="這個檔案夾已經刪除或不存在。" onBack=${actions.back} />`;
+      else if (!canEdit(user, rec)) screen = html`<${MobileBlocked} title="修改檔案夾" message="你沒有權限修改這個檔案夾。" onBack=${actions.back} />`;
       else screen = html`<${MobileEdit} key=${rec.id + userId} ...${common} rec=${rec} />`;
     } else if (route.name === 'upload') {
       screen = canUpload(user)

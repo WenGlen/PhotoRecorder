@@ -47,10 +47,10 @@ window.DEMO = (() => {
     { id: 'site', name: '工地記錄', short: '工地記錄', roles: ['admin', 'architect', 'contractor', 'amis'], subKind: 'day', desc: '施工照片、施工日誌，依日期分子分類' },
     { id: 'review', name: '書審及材料測試', short: '書審及材料測試', roles: ['admin', 'architect', 'contractor'], subKind: 'list', status: true, desc: '材料送審、試驗報告等，由建築師事務所審查' },
     { id: 'event', name: '活動記錄', short: '活動記錄', roles: ['admin', 'architect', 'contractor'], subKind: 'list', desc: '動土、上樑、感恩禮拜等活動' },
-    { id: 'basic', name: '案件基本資料', short: '基本資料', roles: ['admin'], desc: '契約、建照、設計圖說' }
+    { id: 'basic', name: '案件基本資料', short: '基本資料', roles: ['admin', 'architect'], desc: '契約、建照、設計圖說' }
   ];
 
-  // 自訂子分類：書審及材料測試、活動記錄各一份；沒有記錄的子分類，列表不會出現那一段
+  // 自訂子分類：書審及材料測試、活動記錄各一份；還沒有檔案夾的子分類（外牆、上樑典禮）列表上也會列出來
   const subcats = {
     review: [
       { id: 'sc1', name: '施工計畫' },
@@ -70,7 +70,7 @@ window.DEMO = (() => {
   const diary = (name, size, pages) => pdf(name, size, pages, { diary: true });
 
   const records = [
-    // 案件基本資料（只有管理者能傳）
+    // 案件基本資料（管理者、建築師事務所能傳）
     rec({ id: 'r01', cat: 'basic', date: '2026-01-08', title: '建造執照', uploaderId: 'u1', uploadedAt: '2026-02-21T10:12:00+08:00', tags: ['建照', '法規'], pdfs: [pdf('建造執照-115建字第0038號.pdf', '2.1MB', 3)] }),
     rec({ id: 'r02', cat: 'basic', date: '2026-02-20', title: '工程承攬契約', uploaderId: 'u1', uploadedAt: '2026-02-21T10:20:00+08:00', tags: ['契約', '工期'], pdfs: [pdf('工程承攬契約書.pdf', '8.7MB', 46)] }),
     rec({ id: 'r03', cat: 'basic', date: '2026-02-01', title: '建築設計圖說（核定版）', uploaderId: 'u1', uploadedAt: '2026-02-21T10:35:00+08:00', tags: ['圖說', '結構', '電梯'], pdfs: [pdf('建築設計圖說-核定版.pdf', '31.4MB', 88)] }),
@@ -122,7 +122,7 @@ window.DEMO = (() => {
     rec({ id: 'r21', cat: 'review', sub: 'sc3', status: 'pass', statusBy: 'u3', statusAt: '2026-04-30T14:00:00+08:00', date: '2026-04-22', title: '預拌混凝土配比送審', uploaderId: 'u4', uploadedAt: '2026-04-22T10:05:00+08:00', tags: ['混凝土', '配比', '材料送審'], pdfs: [pdf('混凝土配比設計.pdf', '1.1MB', 7)] }),
     rec({ id: 'r31', cat: 'review', sub: 'sc2', status: 'pass', statusBy: 'u3', statusAt: '2026-05-12T09:00:00+08:00', date: '2026-05-08', title: '基礎鋼筋拉力試驗', uploaderId: 'u2', uploadedAt: '2026-05-09T10:15:00+08:00', tags: ['鋼筋', '試驗', '基礎'], pdfs: [pdf('鋼筋拉力試驗報告-基礎.pdf', '0.9MB', 4)] }),
     rec({ id: 'r32', cat: 'review', sub: 'sc3', status: 'pass', statusBy: 'u3', statusAt: '2026-06-12T10:00:00+08:00', date: '2026-06-09', title: '基礎混凝土抗壓試驗（28 天）', uploaderId: 'u2', uploadedAt: '2026-06-10T09:40:00+08:00', tags: ['混凝土', '抗壓', '試驗', '基礎'], pdfs: [pdf('混凝土圓柱試體抗壓報告-基礎28天.pdf', '0.7MB', 3)] }),
-    rec({ id: 'r22', cat: 'review', sub: 'sc5', status: 'pending', date: '2026-09-05', title: '電梯送審', uploaderId: 'u4', uploadedAt: '2026-09-05T14:30:00+08:00', tags: ['電梯', '設備送審'], note: '建築師 09/20 意見：車廂內部尺寸與圖說不符；承包商已更新施工圖', pdfs: [pdf('電梯型錄與規格.pdf', '12.8MB', 40), pdf('電梯施工圖-修正版.pdf', '6.8MB', 15, { uploaderId: 'u2', uploadedAt: '2026-09-22T10:40:00+08:00' })] }),
+    rec({ id: 'r22', cat: 'review', sub: 'sc5', status: 'pending', date: '2026-09-05', title: '電梯送審', uploaderId: 'u4', uploadedAt: '2026-09-05T14:30:00+08:00', tags: ['電梯', '設備送審'], note: '建築師 09/20 意見：車廂內部尺寸與圖說不符；承包商已更新施工圖', pdfs: [pdf('電梯型錄與規格.pdf', '12.8MB', 40), pdf('電梯施工圖-修正版.pdf', '6.8MB', 15, { origName: 'EV-shopdrawing-rev2.pdf', uploaderId: 'u2', uploadedAt: '2026-09-22T10:40:00+08:00' })] }),
     rec({ id: 'r33', cat: 'review', sub: 'sc2', status: 'pending', date: '2026-09-16', title: '三樓鋼筋拉力試驗', uploaderId: 'u4', uploadedAt: '2026-09-16T11:00:00+08:00', tags: ['鋼筋', '試驗', '三樓'], pdfs: [pdf('鋼筋拉力試驗報告-三樓.pdf', '1.0MB', 4)] }),
     rec({ id: 'r34', cat: 'review', sub: 'sc3', status: 'pass', statusBy: 'u3', statusAt: '2026-09-20T10:00:00+08:00', date: '2026-09-17', title: '二樓版混凝土抗壓試驗（28 天）', uploaderId: 'u2', uploadedAt: '2026-09-19T14:20:00+08:00', tags: ['混凝土', '抗壓', '試驗', '二樓'], note: '6 顆試體平均 290 kgf/cm²，符合設計強度', pdfs: [pdf('混凝土圓柱試體抗壓報告-二樓28天.pdf', '0.8MB', 3)], photos: photos('r34', '抗壓試體', 6, '2026-09-17', '10:00', 12) }),
     rec({ id: 'r24', cat: 'review', sub: 'sc4', status: 'pending', date: '2026-09-21', title: '防水材料送審', uploaderId: 'u4', uploadedAt: '2026-09-21T11:30:00+08:00', tags: ['防水', '材料送審'], pdfs: [pdf('防水材料型錄.pdf', '4.5MB', 18)] })
@@ -142,51 +142,74 @@ window.DEMO = (() => {
     rec({ id: 'x02', cat: 'site', date: '2026-09-12', title: '手機誤傳的照片', uploaderId: 'u5', uploadedAt: '2026-09-12T21:10:00+08:00', photos: photos('x02', '誤傳', 2, '2026-09-12', '20:55', 3), deletedBy: 'u5', deletedAt: '2026-09-12T21:15:00+08:00', deleteNote: '' })
   ];
 
-  // 請款：獨立的資料，不跟上面的記錄共用；照片、文件是從記錄挑過來的（存一份當時的副本）
+  // 請款：獨立的資料，不跟上面的檔案夾共用；照片、文件是從檔案夾挑過來的（存一份當時的副本）
+  // 建築師事務所（江維玲）按「審核完成」：文件一份一份按，請款照片整區按一次；前三期已經全部審核完成，第 4 期還在進行
   const findRec = id => records.find(r => r.id === id);
   const fromOf = r => ({ recId: r.id, title: r.title, date: r.date });
-  // 照片名稱跟系統預設一樣是「日期 項目」；第三個參數可以換掉項目那段
-  const pickPhoto = (recId, n, name) => {
+  const stamp = at => ({ by: 'u3', at });
+  const approved = at => ({ approved: at ? stamp(at) : null });
+  /**
+   * 從檔案夾挑的請款照片：名稱跟系統預設一樣是「第N期請款照片-k」，k 是在清單裡的順序。
+   * @param {number} no 第幾期
+   * @param {Array<[string, number, ?string]>} picks 每張是 [檔案夾 id, 第幾張, 自己取的名稱]
+   */
+  const pickPhotos = (no, picks) => picks.map(([recId, n, name], i) => {
     const r = findRec(recId);
-    return { id: `bp-${recId}-${n}`, name: `${r.date.replace(/-/g, '/')} ${name || r.title}`, file: { ...r.photos[n - 1] }, from: fromOf(r) };
-  };
-  const pickDoc = (recId, n) => {
+    return { id: `bp-${recId}-${n}`, name: name || `第${no}期請款照片-${i + 1}`, file: { ...r.photos[n - 1] }, from: fromOf(r) };
+  });
+  const pickDoc = (recId, n, at) => {
     const r = findRec(recId);
     const file = r.pdfs[n - 1];
-    return { id: `bd-${recId}-${n}`, name: file.name, file: { ...file }, from: fromOf(r) };
+    return Object.assign({ id: `bd-${recId}-${n}`, name: file.name, file: { ...file }, from: fromOf(r) }, approved(at));
   };
+  const A1 = '2026-06-05T15:30:00+08:00';
+  const A2 = '2026-08-06T15:00:00+08:00';
+  const A3 = '2026-09-16T10:00:00+08:00';
   const billing = [
     {
       id: 'b1', no: 1, from: '2026-03-15', to: '2026-05-31', createdBy: 'u2', createdAt: '2026-06-02T10:00:00+08:00',
-      done: { by: 'u2', at: '2026-06-05T16:00:00+08:00' },
-      merged: { id: 'b1-m', name: '第1期整合施工日誌.pdf', size: '13.0MB', pages: 67, sources: ['r40-d1', 'r41-d1', 'r42-d1'], uploaderId: 'u2', uploadedAt: '2026-06-02T10:05:00+08:00' },
-      photos: [pickPhoto('r06', 2, '放樣完成'), pickPhoto('r07', 5), pickPhoto('r08', 3), pickPhoto('r09', 7)],
-      docs: [pickDoc('r20', 1), pickDoc('r21', 1), pickDoc('r31', 1)],
-      quotes: [pdf('第1期估價單.pdf', '0.9MB', 5, { id: 'b1-q1', uploaderId: 'u2', uploadedAt: '2026-06-02T10:10:00+08:00' })],
-      others: [pdf('第1期請款函.pdf', '0.2MB', 1, { id: 'b1-o1', uploaderId: 'u2', uploadedAt: '2026-06-02T10:12:00+08:00' })]
+      done: { by: 'u3', at: '2026-06-05T16:00:00+08:00' },
+      merged: Object.assign({ id: 'b1-m', name: '第1期整合施工日誌.pdf', size: '13.0MB', pages: 67, sources: ['r40-d1', 'r41-d1', 'r42-d1'], uploaderId: 'u2', uploadedAt: '2026-06-02T10:05:00+08:00' }, approved(A1)),
+      photos: pickPhotos(1, [['r06', 2], ['r07', 5], ['r08', 3], ['r09', 7]]),
+      photosApproved: stamp(A1),
+      docs: [pickDoc('r20', 1, A1), pickDoc('r21', 1, A1), pickDoc('r31', 1, A1)],
+      quotes: [pdf('第1期估價單.pdf', '0.9MB', 5, Object.assign({ id: 'b1-q1', uploaderId: 'u2', uploadedAt: '2026-06-02T10:10:00+08:00' }, approved(A1)))],
+      others: [pdf('第1期請款函.pdf', '0.2MB', 1, Object.assign({ id: 'b1-o1', uploaderId: 'u2', uploadedAt: '2026-06-02T10:12:00+08:00' }, approved(A1)))]
     },
     {
       id: 'b2', no: 2, from: '2026-06-01', to: '2026-07-31', createdBy: 'u2', createdAt: '2026-08-02T09:00:00+08:00',
-      done: { by: 'u2', at: '2026-08-06T15:30:00+08:00' },
-      merged: { id: 'b2-m', name: '第2期整合施工日誌.pdf', size: '10.5MB', pages: 57, sources: ['r43-d1', 'r44-d1'], uploaderId: 'u2', uploadedAt: '2026-08-02T09:05:00+08:00' },
-      photos: [pickPhoto('r10', 4), pickPhoto('r10', 12, '一樓版灌漿完成面')],
-      docs: [pickDoc('r32', 1)],
-      quotes: [pdf('第2期估價單.pdf', '1.0MB', 5, { id: 'b2-q1', uploaderId: 'u2', uploadedAt: '2026-08-02T09:10:00+08:00' })],
+      done: { by: 'u3', at: '2026-08-06T15:30:00+08:00' },
+      merged: Object.assign({ id: 'b2-m', name: '第2期整合施工日誌.pdf', size: '10.5MB', pages: 57, sources: ['r43-d1', 'r44-d1'], uploaderId: 'u2', uploadedAt: '2026-08-02T09:05:00+08:00' }, approved(A2)),
+      // 第二張示範自己取的名稱
+      photos: pickPhotos(2, [['r10', 4], ['r10', 12, '一樓版灌漿完成面']]),
+      photosApproved: stamp(A2),
+      docs: [pickDoc('r32', 1, A2)],
+      quotes: [pdf('第2期估價單.pdf', '1.0MB', 5, Object.assign({ id: 'b2-q1', uploaderId: 'u2', uploadedAt: '2026-08-02T09:10:00+08:00' }, approved(A2)))],
       others: [
-        pdf('第2期請款函.pdf', '0.2MB', 1, { id: 'b2-o1', uploaderId: 'u2', uploadedAt: '2026-08-02T09:12:00+08:00' }),
-        pdf('工程保險單.pdf', '0.6MB', 3, { id: 'b2-o2', uploaderId: 'u2', uploadedAt: '2026-08-02T09:14:00+08:00' })
+        pdf('第2期請款函.pdf', '0.2MB', 1, Object.assign({ id: 'b2-o1', uploaderId: 'u2', uploadedAt: '2026-08-02T09:12:00+08:00' }, approved(A2))),
+        pdf('工程保險單.pdf', '0.6MB', 3, Object.assign({ id: 'b2-o2', uploaderId: 'u2', uploadedAt: '2026-08-02T09:14:00+08:00' }, approved(A2)))
       ]
     },
     {
-      id: 'b3', no: 3, from: '2026-08-01', to: '2026-08-31', createdBy: 'u2', createdAt: '2026-09-10T17:05:00+08:00', done: null,
-      merged: null,
-      photos: [pickPhoto('r11', 3)],
+      id: 'b3', no: 3, from: '2026-08-01', to: '2026-08-31', createdBy: 'u2', createdAt: '2026-09-10T17:05:00+08:00',
+      done: { by: 'u3', at: '2026-09-16T10:30:00+08:00' },
+      merged: Object.assign({ id: 'b3-m', name: '第3期整合施工日誌.pdf', size: '5.6MB', pages: 31, sources: ['r12-d1'], uploaderId: 'u2', uploadedAt: '2026-09-10T17:10:00+08:00' }, approved(A3)),
+      photos: pickPhotos(3, [['r11', 3], ['r11', 9]]),
+      photosApproved: stamp(A3),
       docs: [],
-      quotes: [pdf('第3期估價單.pdf', '1.1MB', 5, { id: 'b3-q1', uploaderId: 'u2', uploadedAt: '2026-09-10T17:05:00+08:00' })],
-      others: []
+      quotes: [pdf('第3期估價單.pdf', '1.1MB', 5, Object.assign({ id: 'b3-q1', uploaderId: 'u2', uploadedAt: '2026-09-10T17:05:00+08:00' }, approved(A3)))],
+      others: [pdf('第3期請款函.pdf', '0.2MB', 1, Object.assign({ id: 'b3-o1', uploaderId: 'u2', uploadedAt: '2026-09-10T17:12:00+08:00' }, approved(A3)))]
     },
-    // 九月這期還沒整合：按「整合施工日誌」會列出九月每個工作天的施工日誌
-    { id: 'b4', no: 4, from: '2026-09-01', to: '2026-09-30', createdBy: 'u2', createdAt: '2026-09-24T17:40:00+08:00', done: null, merged: null, quotes: [], photos: [], docs: [], others: [] }
+    // 九月這期還在進行：估價單審核完成了，請款照片和書審文件還沒；還沒整合，按「整合施工日誌」會列出九月每個工作天的施工日誌
+    {
+      id: 'b4', no: 4, from: '2026-09-01', to: '2026-09-30', createdBy: 'u2', createdAt: '2026-09-21T09:00:00+08:00', done: null,
+      merged: null,
+      photos: pickPhotos(4, [['r14', 2], ['r15', 5]]),
+      photosApproved: null,
+      docs: [pickDoc('r34', 1, null)],
+      quotes: [pdf('第4期估價單.pdf', '1.2MB', 6, Object.assign({ id: 'b4-q1', uploaderId: 'u2', uploadedAt: '2026-09-21T09:10:00+08:00' }, approved('2026-09-22T11:00:00+08:00')))],
+      others: []
+    }
   ];
 
   // 帳號異動（進操作記錄）

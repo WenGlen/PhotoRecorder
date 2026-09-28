@@ -7,7 +7,7 @@
   if (!PR || PR.bootFailed) return;
 
   const { useState } = window.preactHooks;
-  const { html, APP_NAME, ROLE_IDS, LOG_ACTIONS, ymd, dt, userById, catById, roleName, countText, byLine } = PR;
+  const { html, APP_NAME, ROLE_IDS, LOG_ACTIONS, ymd, dt, userById, catById, roleName, countText, byLine, BrandLogo } = PR;
 
   const PAGES = [
     { id: 'accounts', label: '帳號管理' },
@@ -19,7 +19,7 @@
     const go = hash => e => { e.preventDefault(); actions.nav(hash); };
     return html`<div class="d-shell bs">
       <header class="d-head bs-head">
-        <div class="d-brand">${APP_NAME}<span class="bs-tag">後台</span></div>
+        <div class="d-brand"><${BrandLogo} />${APP_NAME}<span class="bs-tag">後台</span></div>
         <div class="d-user">${user.name}｜${roleName(user.role)}</div>
         <a class="bs-back" href="#/" onClick=${go('#/')}>回到平台</a>
       </header>
@@ -71,13 +71,13 @@
       <div class="d-page-head">
         <div>
           <h1 class="d-h1">回收區</h1>
-          <p class="muted">刪除的資料都在這裡，保留到平台結束。救回後跟刪除前完全一樣。</p>
+          <p class="muted">刪除的檔案夾都在這裡，保留到平台結束。救回後跟刪除前完全一樣。</p>
         </div>
       </div>
       ${list.length === 0
         ? html`<div class="empty"><p>回收區是空的</p></div>`
         : html`<table class="d-table d-static">
-          <thead><tr><th>名稱</th><th>分類</th><th>資料日期</th><th>原上傳者</th><th>刪除的人</th><th>刪除時間</th><th>內容</th><th></th></tr></thead>
+          <thead><tr><th>檔案夾名稱</th><th>分類</th><th>檔案夾建檔日期</th><th>原上傳者</th><th>刪除的人</th><th>刪除時間</th><th>內容</th><th></th></tr></thead>
           <tbody>
             ${list.map(r => html`<tr key=${r.id}>
               <td class="c-title">${r.title}${r.deleteNote && html`<div class="meta">原因：${r.deleteNote}</div>`}</td>

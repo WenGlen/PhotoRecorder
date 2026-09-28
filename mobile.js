@@ -10,22 +10,22 @@
     html, D, APP_NAME, DEFAULT_FILTERS, STATUS, ymd, dt, userById, catById, subLabel, roleName,
     isAdmin, canUpload, canUploadPdf, canEdit, canDelete, canEditFiles, editLeftHours, leftText, editNote,
     countText, byLine, filtersActive, filterRecords, groupFor, groupCount, useGroupOpen,
-    Icon, Photo, TopBar, Sheet, StatusBlock, DocList, DateRange, SiteNote,
+    Icon, Photo, BrandLogo, TopBar, Sheet, StatusBlock, DocList, DateRange, SiteNote,
     Fields, EditFiles, editFormOf, buildEditPatch, useUploadDraft, SelectedFiles, UploadProgress
   } = PR;
 
   // ---------- 首頁 ----------
-  /** showCat：選「全部」時才顯示大分類；showDate：工地記錄已經依日期分段，卡片不再印日期 */
-  function RecordCard({ rec, onOpen, showCat, showDate }) {
+  /** 卡片最上面是檔案夾建檔日期；showCat：選「全部」時才顯示大分類。書審狀態只標「通過」 */
+  function RecordCard({ rec, onOpen, showCat }) {
     const cat = catById(rec.cat);
     const shown = rec.photos.slice(0, 4);
     const more = rec.photos.length - shown.length;
     return html`<a class="card" href=${'#/record/' + rec.id} onClick=${onOpen}>
-      ${(showCat || showDate || cat.status) && html`<div class="card-top">
+      <div class="card-top">
+        <span class="date">${ymd(rec.date)}</span>
         ${showCat && html`<span class="chip">${cat.short}</span>`}
-        ${showDate && html`<span class="date">${ymd(rec.date)}</span>`}
-        ${cat.status && html`<span class=${'st ' + STATUS[rec.status].cls}>${STATUS[rec.status].label}</span>`}
-      </div>`}
+        ${rec.status === 'pass' && html`<span class=${'st ' + STATUS.pass.cls}>${STATUS.pass.label}</span>`}
+      </div>
       <div class="card-title">${rec.title}</div>
       <div class="meta">${byLine(rec)}</div>
       ${shown.length > 0 && html`<div class="thumbs">
@@ -70,23 +70,23 @@
     // 手機版只用「分類、日期區間、搜尋」三個條件，關鍵字篩選在電腦版
     const f = { ...DEFAULT_FILTERS, cat: filters.cat, from: filters.from, to: filters.to, q: filters.q };
     const recs = filterRecords(records, f, data);
-    const groups = groupFor(filters.cat, recs, data);
+    const groups = groupFor(filters.cat, recs, data, !filtersActive(f));
     const { isOpen, flip } = useGroupOpen(groups, filtersActive(f));
-    const card = r => html`<${RecordCard} key=${r.id} rec=${r} onOpen=${open('#/record/' + r.id)}
-      showCat=${filters.cat === 'all'} showDate=${filters.cat !== 'site'} />`;
+    const card = r => html`<${RecordCard} key=${r.id} rec=${r} onOpen=${open('#/record/' + r.id)} showCat=${filters.cat === 'all'} />`;
+    const list = recs => (recs.length ? html`<div class="list">${recs.map(card)}</div>` : html`<p class="grp-empty">沒有檔案夾</p>`);
     const head = (g, level) => html`<${GroupHead} g=${g} level=${level} open=${isOpen(g.key)} onToggle=${() => flip(g.key)}
       user=${user} note=${note} />`;
 
     return html`
       <header class="home-head">
-        <h1 class="app-name">${APP_NAME}</h1>
+        <h1 class="app-name"><${BrandLogo} />${APP_NAME}</h1>
         <div class="who">${user.name}｜${roleName(user.role)}</div>
       </header>
 
       ${mine.length > 0 && html`<section class="m-sec">
         <div>
           <h2 class="m-sec-title">我最近上傳的</h2>
-          <p class="muted">${isAdmin(user) ? '最近一週內你上傳的資料' : '上傳後一週內可以自己修改或刪除'}</p>
+          <p class="muted">${isAdmin(user) ? '最近一週內你上傳的檔案夾' : '上傳後一週內可以自己修改或刪除'}</p>
         </div>
         <div class="mine-list">
           ${mine.map(r => html`<a class="mine-row" key=${r.id} href=${'#/record/' + r.id} onClick=${open('#/record/' + r.id)}>
@@ -111,22 +111,22 @@
         <${DateRange} from=${filters.from} to=${filters.to} onChange=${setF} />
         <div class="search">
           <${Icon} name="search" />
-          <input type="search" aria-label="搜尋" placeholder="搜尋名稱、關鍵字、備註、上傳者"
+          <input type="search" aria-label="搜尋" placeholder="檔案夾、關鍵字、備註、上傳者"
             value=${filters.q} onInput=${e => setF({ q: e.target.value })} />
         </div>
       </section>
 
-      ${recs.length === 0
-        ? html`<div class="empty"><p>沒有符合的記錄</p></div>`
+      ${recs.length === 0 && !(groups && groups.length)
+        ? html`<div class="empty"><p>沒有符合的檔案夾</p></div>`
         : groups
           ? groups.map(g => html`<section key=${g.key} class="m-group">
               ${head(g, 0)}
               ${isOpen(g.key) && (g.children
                 ? g.children.map(c => html`<div key=${c.key} class="m-subgroup">
                     ${head(c, 1)}
-                    ${isOpen(c.key) && html`<div class="list">${c.recs.map(card)}</div>`}
+                    ${isOpen(c.key) && list(c.recs)}
                   </div>`)
-                : html`<div class="list">${g.recs.map(card)}</div>`)}
+                : list(g.recs))}
             </section>`)
           : html`<div class="list">${recs.slice(0, limit).map(card)}</div>`}
       ${!groups && recs.length > limit && html`<div class="pad-x">
@@ -157,7 +157,7 @@
     </ol>`;
   }
 
-  // ---------- 記錄內容 ----------
+  // ---------- 檔案夾內容 ----------
   function MobileRecord({ rec, user, data, actions }) {
     const cat = catById(rec.cat);
     const sub = subLabel(data, rec);
@@ -168,7 +168,7 @@
     const zipAll = () => actions.zipRecord(rec);
 
     return html`
-      <${TopBar} title="記錄內容" onBack=${actions.back} />
+      <${TopBar} title="檔案夾內容" onBack=${actions.back} />
       <main class="page">
         <div class="card-top">
           <span class="chip">${cat.name}</span>
@@ -255,7 +255,7 @@
         </div>
         <div class="step" style=${{ paddingTop: 0 }}>
           <button class="btn btn-line btn-block btn-lg" onClick=${() => actions.openShare(d.createdId)}>分享到 LINE 群組</button>
-          <button class="btn btn-outline btn-block" onClick=${() => actions.replace('#/record/' + d.createdId)}>查看這筆記錄</button>
+          <button class="btn btn-outline btn-block" onClick=${() => actions.replace('#/record/' + d.createdId)}>查看這個檔案夾</button>
           <button class="btn btn-outline btn-block" onClick=${actions.again}>再傳一批</button>
           <button class="link-btn" onClick=${actions.back}>回首頁</button>
         </div>`;
@@ -343,10 +343,10 @@
       actions.back();
     }
     return html`
-      <${TopBar} title="修改資料" onBack=${actions.back} />
+      <${TopBar} title="修改檔案夾" onBack=${actions.back} />
       <main class="step">
         <${Fields} form=${form} setForm=${setForm} catId=${rec.cat} user=${user} data=${data} extraDay=${rec.cat === 'site' ? rec.date : ''} />
-        ${canEditFiles(user, rec) && html`<${EditFiles} form=${form} setForm=${setForm} rec=${rec} user=${user} toast=${actions.toast} />`}
+        <${EditFiles} form=${form} setForm=${setForm} rec=${rec} user=${user} toast=${actions.toast} renameOnly=${!canEditFiles(user, rec)} />
         ${err && html`<div class="notice error">${err}</div>`}
       </main>
       <div class="step-actions">
