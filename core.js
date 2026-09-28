@@ -29,7 +29,7 @@
   const LOG_ACTIONS = ['上傳', '修改', '更新文件', '書審狀態', '子分類備註', '請款', '刪除', '救回', '永久刪除', '帳號', '設定'];
 
   const ROLES = {
-    admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有檔案夾，也能審核請款、解鎖已全部審核完成的請款；後台要知道網址才進得去' },
+    admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有檔案夾，也能審核請款、解鎖已全部審核完成的請款' },
     architect: { name: '建築師事務所', desc: '可以傳工地記錄、書審及材料測試、活動記錄、案件基本資料，切換書審狀態，管理子分類，審核請款' },
     contractor: { name: '承包商', desc: '可以傳工地記錄、書審及材料測試、活動記錄，建立請款；一週內可以改或刪自己傳的' },
     amis: { name: '阿美中會', desc: '全部都能看；只能傳工地記錄的照片，不能傳文件' }
@@ -1186,7 +1186,8 @@
     return ROLES[u.role].desc;
   }
 
-  function DemoSheet({ userId, users, viewMode, setViewMode, simDrop, setSimDrop, onPick, onSampleUpload, onBackstage, onReset, onClose }) {
+  /** Demo 設定。後台不在這裡放入口，也不說明；管理者直接打 #/backstage 網址才進得去 */
+  function DemoSheet({ userId, users, viewMode, setViewMode, simDrop, setSimDrop, onPick, onSampleUpload, onReset, onClose }) {
     const people = [...users, { id: GUEST, guest: true }];
     return html`<${Sheet} title="Demo 設定" onClose=${onClose}>
       <p class="demo-desc">這是給業主與使用者試用的示意版：資料都是假的，照片不會真的上傳。系統時間固定為 2026/09/24 18:00。</p>
@@ -1207,8 +1208,6 @@
         <input type="checkbox" checked=${simDrop} onChange=${e => setSimDrop(e.target.checked)} />
         <span>上傳時模擬斷線一次</span>
       </label>
-      <div class="notice info">後台（帳號管理、回收區、操作記錄）在平台裡沒有入口，只有管理者、而且知道網址才進得去。</div>
-      <button class="btn btn-outline btn-block" onClick=${onBackstage}>（Demo）開啟後台網址 #/backstage</button>
       <button class="btn btn-outline btn-block" onClick=${onReset}>重置 demo 資料</button>
     <//>`;
   }

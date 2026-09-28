@@ -304,7 +304,6 @@
             toast(u ? `已切換為 ${u.name}（${roleName(u.role)}）` : '已切換為未登入');
           }}
           onSampleUpload=${() => { closeSheet(); actions.go('#/upload?sample=1'); }}
-          onBackstage=${() => { closeSheet(); actions.nav('#/backstage'); }}
           onReset=${() => {
             setUsers(initialUsers()); setUserId('u1'); setData(initialData()); setFilters(DEFAULT_FILTERS);
             closeSheet(); depth.current = 0; location.hash = '#/'; toast('已重置 demo 資料');
