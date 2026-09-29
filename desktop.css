@@ -70,7 +70,6 @@
 .d-close { width: 44px; height: 44px; margin: -8px -12px 0 0; }
 .d-detail-title { font-size: 24px; line-height: 1.4; }
 .d-sec-title { font-size: 18px; font-weight: 700; }
-.d-empty-detail { padding: 40px 24px; color: var(--text-2); }
 
 /* 分類：底線式分頁，比整排實心按鈕安靜 */
 .d-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); }
@@ -110,7 +109,7 @@
 .d-result-row .link-btn { min-height: 36px; font-size: 16px; }
 .d-result-tools { display: flex; align-items: center; gap: 8px; margin-left: auto; }
 .btn.sm.on { border-color: var(--primary); background: var(--primary-soft); color: var(--primary-ink); }
-/* 下載模式：跨項目勾選檔案，最後打包成一個 zip */
+/* 一次下載多個檔案：跨檔案夾勾選檔案，最後打包成一個 zip */
 .d-dlbar {
   display: flex;
   align-items: center;
@@ -135,7 +134,7 @@
 .icon-btn:disabled { opacity: 0.35; cursor: not-allowed; }
 
 .d-table { width: 100%; border-collapse: collapse; font-size: 16px; }
-/* 記錄表格固定欄寬，名稱欄吃剩下的寬度，不會被長的上傳者文字擠窄 */
+/* 檔案夾表格固定欄寬，名稱欄吃剩下的寬度，不會被長的上傳者文字擠窄 */
 .d-table.fixed { table-layout: fixed; }
 .d-table.fixed .w-date { width: 124px; }
 /* 日期欄在最前面、跟著分段往右縮排，所以分段越多層，日期欄要越寬 */
@@ -161,7 +160,7 @@
 .d-row:hover { background: var(--page); }
 .d-row.on { background: var(--primary-soft); }
 .d-row:focus-visible { outline-offset: -3px; }
-/* 分段列可收合：月份／子分類一層，工地記錄的日期再一層；項目往右縮排 */
+/* 分段列可收合：月份／子分類一層，工地記錄的日期再一層；檔案夾往右縮排 */
 .d-group-row td { padding: 4px 12px; border-bottom: 1px solid var(--border); background: var(--page); color: var(--text-2); }
 .d-group-row.lv1 td { padding-left: 32px; }
 .d-group-row .grp-toggle { min-height: 40px; font-size: 16px; }
@@ -189,8 +188,6 @@
   line-height: 22px;
   white-space: nowrap;
 }
-.c-check { width: 44px; }
-.c-check input, .check-inline input { width: 20px; height: 20px; }
 .c-title { font-weight: 500; }
 .c-name-line { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .c-name-line .c-title { font-weight: 700; }
@@ -200,7 +197,6 @@
 .c-actions { text-align: right; white-space: nowrap; }
 .c-actions .btn + .btn { margin-left: 8px; }
 tr.is-off td { color: var(--text-3); }
-.check-inline { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
 .off-tag {
   display: inline-block;
   padding: 0 12px;
@@ -299,26 +295,31 @@ tr.is-off td { color: var(--text-3); }
 
 /* ---------- 請款 ---------- */
 .bill-sec { padding-top: 16px; border-top: 1px solid var(--border); }
-.sec-tools { display: flex; flex-wrap: wrap; gap: 8px; }
-.bill-photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 12px; }
-.bill-photo { display: grid; gap: 4px; margin: 0; }
-.bill-photo figcaption { color: var(--text-2); font-size: 15px; line-height: 1.4; }
-.bill-photo .cap-date { white-space: nowrap; }
-.bill-photo .cap-item { display: inline-block; }
-.bill-photo .btn.sm { justify-self: start; min-height: 36px; padding: 0 10px; font-size: 15px; }
-.bill-photo .appr { justify-self: start; }
-/* 審核完成：綠色標籤；文件列上後面接審核的人和時間，排在下載等按鈕的左邊 */
+/* 審核完成：綠色標籤，後面接審核的人和時間 */
 .appr { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
 .appr-by { color: var(--text-2); font-size: 14px; }
-.doc-actions { align-items: center; }
-.doc-actions .appr { margin-right: auto; }
-/* 請款照片整區的審核：排在照片下面；審核完成後這裡改成「審核完成」和審核的人、時間 */
-.bill-photos-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
-.bill-photos-foot .appr { margin-right: auto; }
-/* 請款列表：項目名稱底下列出檔案，一個檔案一顆小按鈕、排成一串，點了直接預覽 */
-.bill-name { font-weight: 700; }
-.bill-name .st { margin-left: 8px; vertical-align: 1px; }
-/* 請款完成：鎖定中的標示，管理者旁邊有「解鎖」 */
+/* 請款裡的文件：檔名那一列右邊是刪除的 X（跟檔案夾修改時的文件列一樣）；最後一行「審核完成」靠左、「下載」靠右 */
+.doc-head { display: flex; align-items: center; }
+.doc-head .file-row { flex: 1 1 0; width: auto; min-width: 0; }
+.doc-head .file-remove { margin-right: 6px; }
+.doc-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.doc .doc-foot { padding: 0 12px 12px; }
+.doc-foot .doc-dl { margin-left: auto; }
+/* 請款照片整區的審核：排在照片下面自己一行、靠左（跟文件的「審核完成」一樣），不跟「新增一筆」並排 */
+.bill-photos-foot { display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px dashed var(--border); }
+/* 請款列表：名稱、全部審核完成、備註排一行，底下列出檔案，一個檔案一顆小按鈕、排成一串，點了直接預覽 */
+.bill-name { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; min-width: 0; }
+.bill-title { font-weight: 700; white-space: nowrap; }
+/* 請款名稱後面的備註：鉛筆在備註左邊，太長就截斷（滑鼠移上去看全文）；改的時候輸入框也在同一行，佔滿名稱右邊的寬度（跟子分類備註一樣） */
+.bill-note-line { display: flex; align-items: center; gap: 2px; min-width: 0; flex: 1 1 0; }
+.bill-note-line .grp-edit { width: 36px; height: 36px; }
+.bill-note { min-width: 0; overflow: hidden; color: var(--text-2); font-size: 15px; font-weight: 400; text-overflow: ellipsis; white-space: nowrap; }
+.bill-note-edit { flex: 1 1 0; min-width: 0; }
+.bill-note-edit .grp-note-edit .input, .bill-note-edit .grp-note-edit .btn { min-height: 40px; font-size: 16px; }
+.bill-note-edit .grp-note-edit .btn { padding: 0 14px; }
+.bill-title-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.bill-title-line .bill-note-line { flex: 1 1 200px; }
+/* 全部審核完成：鎖定中的標示，管理者旁邊有「解鎖」 */
 .bill-lock { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; padding: 12px 16px; border-radius: var(--radius-lg); background: var(--pass-bg); }
 .bill-lock .st { display: inline-flex; align-items: center; gap: 4px; background: var(--bg); }
 .bill-lock-note { flex: 1 1 200px; color: var(--pass-fg); font-size: 16px; }
@@ -344,22 +345,25 @@ tr.is-off td { color: var(--text-3); }
 .bill-files-empty { margin-top: 4px; color: var(--text-3); font-size: 15px; }
 .merge-table th, .merge-table td { font-size: 15px; }
 .merge-sum { color: var(--text-2); font-weight: 500; }
+/* 請款照片、書審及材料測試：直接一筆一筆列在側窗，縮圖小一點，名稱欄才夠寬 */
 .entry-list { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
 .entry {
   display: grid;
-  grid-template-columns: 28px 136px minmax(0, 1fr);
+  grid-template-columns: 24px 104px minmax(0, 1fr);
   align-items: start;
-  gap: 12px;
+  gap: 10px;
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
 }
+/* 書審及材料測試那一筆：左邊只放文件圖示（點了預覽） */
+.entry.doc-entry { grid-template-columns: 24px 44px minmax(0, 1fr); }
 .entry-no { color: var(--text-3); font-weight: 700; line-height: 44px; }
 .entry-thumb {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 136px;
+  width: 104px;
   aspect-ratio: 4 / 3;
   border-radius: var(--radius);
   overflow: hidden;
@@ -367,19 +371,30 @@ tr.is-off td { color: var(--text-3); }
   color: var(--text-3);
   font-size: 14px;
 }
-.entry-doc { display: flex; align-items: flex-start; gap: 6px; min-height: 44px; padding-top: 10px; color: var(--text-2); font-size: 15px; word-break: break-all; }
-.entry-doc .icon { flex: none; color: var(--text-3); }
+button.entry-thumb { padding: 0; border: none; cursor: pointer; }
+.entry-doc { display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; border-radius: var(--radius); color: var(--text-3); }
+button.entry-doc { border: 1px solid var(--border); background: var(--bg); cursor: pointer; }
+button.entry-doc:hover { border-color: var(--primary); background: var(--primary-soft); }
 .entry-main { display: grid; gap: 8px; min-width: 0; }
+/* 名稱那一行：輸入框右邊是刪除的 X，跟檔案夾修改時的文件列一樣 */
+.entry-name-line { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.entry-name-line > .input, .entry-name-line > .entry-name { flex: 1 1 0; min-width: 0; }
+.entry .input { min-height: 44px; font-size: 16px; }
+.entry-name { display: flex; align-items: center; min-height: 44px; font-weight: 500; overflow-wrap: anywhere; }
+/* X 保留 52px 的點擊範圍，但不把這一行撐高，名稱才會跟左邊的序號、圖示對齊 */
+.entry-name-line .file-remove { margin: -4px 0; }
 .entry-src { min-height: 20px; color: var(--text-3); font-size: 14px; }
-.entry-name { display: flex; align-items: center; min-height: 52px; font-weight: 500; overflow-wrap: anywhere; }
 .entry-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+/* 按了「新增一筆」、還沒選好檔案的那一筆：照片、文件的位置都是灰底，跟「未選照片」一樣 */
+.entry.pending { border-style: dashed; background: var(--page); }
+.entry.pending .entry-doc { background: var(--surface); }
 .picker { display: grid; gap: 16px; }
 .picker-bar { display: grid; gap: 8px; }
 .picker-rec { display: grid; gap: 8px; }
 .picker-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .picker-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
 
-/* 桌機版的面板改成畫面中間的對話框；請款的清單、挑檔案用更寬的 */
+/* 桌機版的面板改成畫面中間的對話框；整合施工日誌、挑檔案用更寬的 */
 .d-app .sheet {
   top: 50%;
   bottom: auto;
@@ -390,7 +405,6 @@ tr.is-off td { color: var(--text-3); }
   box-shadow: 0 16px 48px rgba(15, 23, 42, 0.2);
 }
 .d-app .sheet.wide { max-width: 960px; }
-.d-app .sheet.wide.two-thirds { max-width: 640px; }
 .d-app .sheet-body { padding: 20px 28px 28px; }
 .d-app .modal { inset: 32px; }
 .d-app .pdfv-inner { max-width: 800px; }

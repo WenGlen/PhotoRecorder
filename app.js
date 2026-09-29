@@ -22,7 +22,7 @@
   } = PR;
 
   const DESKTOP_MIN = 1024;
-  const EDIT_FIELDS = [['date', '日期'], ['title', '檔案夾名稱'], ['sub', '子分類'], ['tags', '關鍵字'], ['note', '備註'], ['photos', '照片'], ['pdfs', '文件']];
+  const EDIT_FIELDS = [['date', '檔案夾建檔日期'], ['title', '檔案夾名稱'], ['sub', '子分類'], ['tags', '關鍵字'], ['note', '備註'], ['photos', '照片'], ['pdfs', '文件']];
   // 照片、文件比對有哪幾個檔案、哪些勾了施工日誌，文件還要比對名稱（改名也算修改）
   const fieldValue = (key, v) => (key === 'photos' || key === 'pdfs'
     ? (v || []).map(x => `${x.id}${key === 'pdfs' ? `:${x.name}` : ''}${x.diary ? '*' : ''}`)
@@ -254,7 +254,7 @@
       // ---------- 請款 ----------
       addBilling(info) {
         const b = {
-          id: uid('b'), ...info, createdBy: user.id, createdAt: nowIso(),
+          id: uid('b'), ...info, createdBy: user.id, createdAt: nowIso(), note: null,
           merged: null, quotes: [], photos: [], photosApproved: null, docs: [], others: [], done: null
         };
         setData(d => ({ ...d, billing: [...d.billing, b], log: [logEntry(user.id, '請款', billingName(b), '新增一期請款'), ...d.log] }));
@@ -272,6 +272,20 @@
             log: detail ? [logEntry(user.id, '請款', billingName(next), detail), ...d.log] : d.log
           };
         });
+      },
+      // 請款名稱後面的備註：清空就是刪掉備註
+      setBillingNote(id, text) {
+        setData(d => {
+          const b = d.billing.find(x => x.id === id);
+          if (!b) return d;
+          const note = text ? { text, by: user.id, at: nowIso() } : null;
+          return {
+            ...d,
+            billing: d.billing.map(x => (x.id === id ? { ...x, note } : x)),
+            log: [logEntry(user.id, '請款', billingName(b), text ? `備註：${text}` : '清除備註'), ...d.log]
+          };
+        });
+        toast(text ? '已儲存請款備註' : '已清除請款備註');
       },
       // ---------- 帳號 ----------
       updateUser(id, patch) {

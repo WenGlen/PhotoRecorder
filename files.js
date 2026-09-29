@@ -1,5 +1,5 @@
 /* 阿美中會工地記錄平台 Demo：檔案處理
-   照片壓縮、讀拍攝時間與頁數、產生示意檔、單檔／打包下載、列印、合併施工日誌、照片列印 PDF */
+   照片壓縮、讀拍攝時間與頁數、產生示意檔、單檔／打包下載、列印、合併施工日誌、請款照片列印 PDF（一頁三張） */
 (function () {
   'use strict';
 
@@ -386,8 +386,8 @@
   }
 
   /**
-   * 請款照片列印：A4 一頁兩張，照片下面印名稱與來源。
-   * @param {string} title 請款項目名稱
+   * 請款照片列印：A4 一頁三張，照片下面印名稱與來源。
+   * @param {string} title 請款名稱（「第3期請款」）
    * @param {Array<{ name: string, file: Object, from?: Object }>} entries
    * @returns {Promise<{ blob: Blob, pages: number }>}
    */
@@ -397,19 +397,22 @@
     const doc = await PDFDocument.create();
     doc.setTitle(heading);
     const font = await doc.embedFont(StandardFonts.Helvetica);
-    const pages = Math.ceil(entries.length / 2);
+    const perPage = 3;
+    const pages = Math.ceil(entries.length / perPage);
     const head = await doc.embedPng(await textPng([{ text: heading, size: 26, color: '#475569' }], { width: 1030 }));
+    // 一張照片佔一格：照片框 188pt 高，下面留名稱與來源；三格從標題下方排到頁碼上方
     const boxW = 515;
-    const boxH = 300;
+    const boxH = 188;
+    const slot = 244;
     for (let pi = 0; pi < pages; pi++) {
       const page = doc.addPage(A4);
       const hd = head.scale(0.5);
       page.drawImage(head, { x: 40, y: 806 - hd.height, width: hd.width, height: hd.height });
       page.drawText(`${pi + 1} / ${pages}`, { x: 520, y: 28, size: 10, font, color: rgb(0.39, 0.45, 0.55) });
-      for (let k = 0; k < 2; k++) {
-        const e = entries[pi * 2 + k];
+      for (let k = 0; k < perPage; k++) {
+        const e = entries[pi * perPage + k];
         if (!e) break;
-        const top = 772 - k * 372;
+        const top = 772 - k * slot;
         const img = await doc.embedJpg(await photoJpeg(e.file));
         const s = Math.min(boxW / img.width, boxH / img.height);
         const w = img.width * s;

@@ -86,7 +86,7 @@
       ${mine.length > 0 && html`<section class="m-sec">
         <div>
           <h2 class="m-sec-title">我最近上傳的</h2>
-          <p class="muted">${isAdmin(user) ? '最近一週內你上傳的檔案夾' : '上傳後一週內可以自己修改或刪除'}</p>
+          <p class="muted">${isAdmin(user) ? '最近 14 天內你上傳的檔案夾' : '上傳後 14 天內可以自己修改、刪除或追加檔案'}</p>
         </div>
         <div class="mine-list">
           ${mine.map(r => html`<a class="mine-row" key=${r.id} href=${'#/record/' + r.id} onClick=${open('#/record/' + r.id)}>
@@ -225,7 +225,8 @@
     const cat = d.catId ? catById(d.catId) : null;
     // 網址帶了分類進來、或這個身分只能傳一類時，分類已經定好，只剩兩步
     const fixedCat = d.presetCat;
-    const stepLabels = fixedCat ? ['選照片', '確認資料'] : ['選照片', '選分類', '確認資料'];
+    const pickLabel = allowPdf ? '選照片或文件' : '選照片';
+    const stepLabels = fixedCat ? [pickLabel, '確認資料'] : [pickLabel, '選分類', '確認資料'];
     const stepIndex = step === 'files' ? 0 : step === 'cat' ? 1 : stepLabels.length - 1;
     const stepper = html`<${Stepper} steps=${stepLabels} current=${stepIndex} />`;
 
@@ -283,7 +284,7 @@
             </label>`}
           </div>
           ${!d.items.length && html`<button class="btn btn-outline btn-block" onClick=${d.addSamples}>（Demo）加入 15 張範例照片</button>`}
-          ${d.reading > 0 && html`<div class="notice info">正在處理照片…</div>`}
+          ${d.reading > 0 && html`<div class="notice info">正在讀取、壓縮檔案…</div>`}
           <${SelectedFiles} d=${d} />
         </div>
         <div class="step-actions">

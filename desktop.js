@@ -8,9 +8,9 @@
   const { useState, useRef } = window.preactHooks;
   const {
     html, D, APP_NAME, DEFAULT_FILTERS, STATUS, uid, ymd, dt, userById, catById, subList, subLabel, roleName,
-    isAdmin, canUpload, canUploadPdf, canManageSubcats, canEdit, canDelete, canEditFiles,
+    canUpload, canUploadPdf, canManageSubcats, canEdit, canDelete, canEditFiles,
     countText, byLine, filtersActive, filterRecords, recentKeywords, groupFor, groupCount, useGroupOpen,
-    Icon, Photo, BrandLogo, StatusBlock, DocList, DateRange, SiteNote,
+    Icon, Photo, BrandLogo, Sheet, StatusBlock, DocList, DateRange, SiteNote,
     Fields, EditFiles, editFormOf, buildEditPatch, useUploadDraft, SelectedFiles, UploadProgress
   } = PR;
 
@@ -127,7 +127,7 @@
     </table>`;
   }
 
-  // 照片牆：跟列表同樣的分段（只列有照片的）；下載模式時點照片是勾選
+  // 照片牆：跟列表同樣的分段（只列有照片的）；一次下載多個檔案時點照片是勾選
   function PhotoWall({ recs, groups, isOpen, flip, selId, onSelect, actions, dl, user, note }) {
     const withPhotos = list => list.filter(r => r.photos.length);
     const block = r => html`<div class=${'d-wall-rec' + (selId === r.id ? ' on' : '')} key=${r.id}>
@@ -187,9 +187,11 @@
     const clearFilters = () => setFilters({ ...DEFAULT_FILTERS, cat: filters.cat });
     const selId = route.name === 'record' || route.name === 'edit' ? route.id : null;
     const sel = selId && data.records.find(r => r.id === selId);
+    // 網址指到已刪除或不存在的檔案夾（例如舊的分享連結）：側窗說明，跟手機版一樣
+    const missing = !!selId && !sel;
     const select = id => actions.replace('#/record/' + id);
 
-    // 下載模式：跨檔案夾、跨分類勾選檔案，最後打包成一個 zip；結束時回到按「一次下載多個檔案」之前的畫面
+    // 一次下載多個檔案：跨檔案夾、跨分類勾選檔案，最後打包成一個 zip；結束時回到按下之前的畫面
     const before = useRef(null);
     const keyOf = (recId, fileId) => `${recId}:${fileId}`;
     const dl = {
@@ -232,7 +234,7 @@
       }
     };
     const startDl = () => { before.current = { selId, filters, view }; setDlMode(true); };
-    /** 結束下載模式（按「結束多檔下載」或下載完成）：分類、篩選、顯示方式和側窗都回到開始之前的樣子 */
+    /** 結束一次下載多個檔案（按「結束多檔下載」或下載完成）：分類、篩選、顯示方式和側窗都回到開始之前的樣子 */
     const endDl = () => {
       setDlMode(false);
       setPicked({});
@@ -246,7 +248,7 @@
     };
     const kwOptions = recentKeywords(data).filter(t => !filters.tags.includes(t));
 
-    return html`<div class=${'d-page d-split' + (sel ? ' has-detail' : '')}>
+    return html`<div class=${'d-page d-split' + (sel || missing ? ' has-detail' : '')}>
       <section class="d-list-col">
         <div class="d-toolbar">
           <div class="d-tabs" role="group" aria-label="分類">
@@ -301,7 +303,7 @@
             ? html`<div class="empty"><p>沒有符合的檔案夾</p>${active && html`<button class="btn btn-outline" onClick=${clearFilters}>清除條件</button>`}</div>`
             : view === 'table'
               ? html`<${RecordTable} recs=${recs} groups=${groups} isOpen=${isOpen} flip=${flip} user=${user}
-                  selId=${selId} onSelect=${select} compact=${!!sel} showCat=${filters.cat === 'all'} dl=${dl} note=${note} />`
+                  selId=${selId} onSelect=${select} compact=${!!sel || missing} showCat=${filters.cat === 'all'} dl=${dl} note=${note} />`
               : html`<${PhotoWall} recs=${recs} groups=${groups} isOpen=${isOpen} flip=${flip} selId=${selId} onSelect=${select}
                   actions=${actions} dl=${dl} user=${user} note=${note} />`}
         </div>
@@ -309,6 +311,12 @@
       ${sel && html`<aside class="d-detail-col" aria-label="詳細資料">
         <${RecordDetail} key=${sel.id} rec=${sel} user=${user} data=${data} actions=${actions} dl=${dl}
           startEditing=${route.name === 'edit'} onClose=${() => actions.replace('#/')} />
+      </aside>`}
+      ${missing && html`<aside class="d-detail-col" aria-label="詳細資料">
+        <div class="d-detail">
+          <div class="d-detail-head"><span></span><${DetailClose} onClose=${() => actions.replace('#/')} /></div>
+          <div class="empty"><p>這個檔案夾已經刪除或不存在。</p></div>
+        </div>
       </aside>`}
     </div>`;
   }
@@ -462,7 +470,7 @@
                     <button class="icon-btn sm" aria-label=${s.name + ' 往上移'} disabled=${i === 0} onClick=${() => move(i, -1)}><${Icon} name="up" /></button>
                     <button class="icon-btn sm" aria-label=${s.name + ' 往下移'} disabled=${i === list.length - 1} onClick=${() => move(i, 1)}><${Icon} name="down" /></button>
                     ${n > 0
-                      ? html`<span class="tip" tabIndex="0" data-tip="有檔案夾使用此分類，無法刪除" aria-label="有檔案夾使用此分類，無法刪除">
+                      ? html`<span class="tip" tabIndex="0" data-tip="有檔案夾在用這個子分類，不能移除" aria-label="有檔案夾在用這個子分類，不能移除">
                           <button class="btn btn-outline sm danger" disabled>移除</button>
                         </span>`
                       : html`<button class="btn btn-outline sm danger"
@@ -483,7 +491,10 @@
   function DesktopUpload({ user, data, preset, simDrop, actions }) {
     const d = useUploadDraft({ user, data, preset, simDrop, actions });
     const [drag, setDrag] = useState(false);
+    const [askLeave, setAskLeave] = useState(false);
     const allowPdf = canUploadPdf(user);
+    // 跟手機版一樣：已經選了檔案、還沒上傳就離開，先問一次
+    const leave = () => { if (d.items.length) setAskLeave(true); else actions.back(); };
 
     if (d.phase === 'progress') {
       return html`<div class="d-page"><div class="d-narrow">
@@ -498,7 +509,7 @@
         <p class="done-sub">已存到「${catById(d.catId).name}」，共 ${d.summary}</p>
         <div class="btn-row">
           <button class="btn btn-primary" onClick=${() => actions.replace('#/record/' + d.createdId)}>查看這個檔案夾</button>
-          <button class="btn btn-outline" onClick=${() => actions.copyLink(d.createdId)}>複製分享連結</button>
+          <button class="btn btn-outline" onClick=${() => actions.copyLink(d.createdId)}>複製連結</button>
           <button class="btn btn-outline" onClick=${actions.again}>再傳一批</button>
         </div>
       </div></div>`;
@@ -516,7 +527,7 @@
           <h1 class="d-h1">${allowPdf ? '上傳照片或文件' : '上傳工地照片'}</h1>
           <p class="muted">${allowPdf ? '電腦裡的 PDF（契約、施工日誌、送審文件）適合在這裡傳；現場照片建議直接用手機傳。' : '阿美中會帳號可以上傳工地記錄的照片。'}</p>
         </div>
-        <button class="btn btn-outline" onClick=${actions.back}>取消</button>
+        <button class="btn btn-outline" onClick=${leave}>取消</button>
       </div>
       <div class="d-upload-grid">
         <section class="d-card">
@@ -531,7 +542,7 @@
             <span class="muted">或按這裡選檔；照片一次最多 100 張${allowPdf ? '，PDF 每份 50MB 以內' : ''}</span>
           </label>
           ${!d.items.length && html`<button class="btn btn-outline btn-block" onClick=${d.addSamples}>（Demo）加入 15 張範例照片</button>`}
-          ${d.reading > 0 && html`<div class="notice info">正在處理照片…</div>`}
+          ${d.reading > 0 && html`<div class="notice info">正在讀取、壓縮檔案…</div>`}
           <${SelectedFiles} d=${d} />
         </section>
         <section class="d-card">
@@ -549,6 +560,11 @@
           </button>
         </section>
       </div>
+      ${askLeave && html`<${Sheet} title="要放棄這次上傳嗎？" onClose=${() => setAskLeave(false)}>
+        <p>這次選的檔案（${d.summary}）不會保留。</p>
+        <button class="btn btn-danger btn-block" onClick=${() => { setAskLeave(false); actions.back(); }}>放棄上傳</button>
+        <button class="btn btn-outline btn-block" onClick=${() => setAskLeave(false)}>繼續上傳</button>
+      <//>`}
     </div>`;
   }
 

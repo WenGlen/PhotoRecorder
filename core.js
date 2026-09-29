@@ -18,7 +18,7 @@
   const NOW = new Date(D.NOW);
   const LOADED_AT = Date.now();
   const nowIso = () => new Date(NOW.getTime() + (Date.now() - LOADED_AT)).toISOString();
-  const EDIT_HOURS = 168; // 上傳後一週內，上傳者可以修改、刪除
+  const EDIT_HOURS = 336; // 上傳後 14 天內，上傳者可以修改、刪除、追加檔案（從檔案夾第一次上傳算起）
   const RECENT_DAYS = 7; // 工地記錄的日期子分類：今天往前 7 天
   const RECENT_KEYWORDS = 15; // 上傳時只列最近用過的 15 個關鍵字
   const MAX_PHOTOS = 100;
@@ -29,15 +29,15 @@
   const LOG_ACTIONS = ['上傳', '修改', '更新文件', '書審狀態', '子分類備註', '請款', '刪除', '救回', '永久刪除', '帳號', '設定'];
 
   const ROLES = {
-    admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有檔案夾，也能審核請款、解鎖已全部審核完成的請款' },
-    architect: { name: '建築師事務所', desc: '可以傳工地記錄、書審及材料測試、活動記錄、案件基本資料，切換書審狀態，管理子分類，審核請款' },
-    contractor: { name: '承包商', desc: '可以傳工地記錄、書審及材料測試、活動記錄，建立請款；一週內可以改或刪自己傳的' },
+    admin: { name: '管理者', desc: '全部都能看、能傳，可以修改或刪除所有檔案夾，也能切換書審狀態、審核請款、解鎖已全部審核完成的請款' },
+    architect: { name: '建築師事務所', desc: '可以傳工地記錄、書審及材料測試、活動記錄、案件基本資料，切換書審狀態，管理子分類，審核請款、刪除請款裡的檔案' },
+    contractor: { name: '承包商', desc: '可以傳工地記錄、書審及材料測試、活動記錄，建立請款；14 天內可以改或刪自己傳的' },
     amis: { name: '阿美中會', desc: '全部都能看；只能傳工地記錄的照片，不能傳文件' }
   };
   const ROLE_IDS = Object.keys(ROLES);
   const roleName = id => (ROLES[id] ? ROLES[id].name : '');
 
-  // 書審狀態只有兩種，只有建築師事務所能切換
+  // 書審狀態只有兩種，管理者、建築師事務所能切換
   const STATUS = {
     pending: { label: '處理中', cls: 'st-pending' },
     pass: { label: '通過', cls: 'st-pass' }
@@ -71,12 +71,10 @@
   const recentDays = () => Array.from({ length: RECENT_DAYS }, (_, i) => addDays(today(), -i));
   // 工地記錄的子分類名稱：「09/24 本日記錄」，不寫年份（列表上已經依月份分段）
   const siteSubName = d => `${d.slice(5, 7)}/${d.slice(8, 10)} 本日記錄`;
-  // 請款的日期區間：「2026/08/01~2026/08/31」；還沒填結束日期時是「2026/10/01～」
-  const billingRange = b => `${ymd(b.from)}${b.to ? `~${ymd(b.to)}` : '～'}`;
-  // 請款名稱自動產生：「第3期請款：2026/08/01~2026/08/31」
-  const billingName = b => `第${b.no}期請款：${billingRange(b)}`;
+  // 請款名稱自動產生：「第3期請款」（0929 起請款沒有日期）
+  const billingName = b => `第${b.no}期請款`;
   /**
-   * 請款裡從記錄挑來的照片或文件出自哪一筆：「日期 項目」，例如「2026/07/08 一樓版灌漿」。挑照片時也當預設名稱。
+   * 請款裡從檔案夾挑來的照片或文件出自哪個檔案夾：「日期 檔案夾名稱」，例如「2026/07/08 一樓版灌漿」，畫面上寫成「來自：…」。
    * @param {{ date: string, title: string }} from
    * @returns {string}
    */
@@ -88,7 +86,7 @@
   const userById = id => USERS.find(u => u.id === id) || { id, name: '（不明）', role: 'amis' };
   const catById = id => D.categories.find(c => c.id === id);
   const subList = (data, catId) => data.subcats[catId] || [];
-  /** 記錄的子分類名稱：工地記錄是日期，書審及材料測試、活動記錄是自訂子分類，基本資料沒有 */
+  /** 檔案夾的子分類名稱：工地記錄是日期，書審及材料測試、活動記錄是自訂子分類，基本資料沒有 */
   function subLabel(data, rec) {
     const c = catById(rec.cat);
     if (!c || !c.subKind) return '';
@@ -102,30 +100,34 @@
   const canUploadCat = (u, c) => c.roles.includes(u.role);
   const canUpload = u => D.categories.some(c => canUploadCat(u, c));
   const canUploadPdf = u => u.role !== 'amis';
-  const canToggleStatus = u => u.role === 'architect';
+  const canToggleStatus = u => u.role === 'admin' || u.role === 'architect';
   const canManageSubcats = u => u.role === 'admin' || u.role === 'architect';
   const canEditSiteNote = u => ['admin', 'architect', 'contractor'].includes(u.role);
   const canBilling = u => u.role === 'admin' || u.role === 'contractor';
   /** 請款的「審核完成」和「全部審核完成」：管理者、建築師事務所 */
   const canApproveBilling = u => u.role === 'admin' || u.role === 'architect';
+  /** 刪除請款裡還沒審核完成的文件和照片：管理者、建築師事務所、承包商（全部審核完成後都不能刪） */
+  const canDeleteBillingFile = u => ['admin', 'architect', 'contractor'].includes(u.role);
+  /** 請款名稱後面的備註：跟子分類備註一樣是管理者、建築師事務所、承包商，全部審核完成後也能改 */
+  const canEditBillingNote = canEditSiteNote;
   const editLeftHours = rec => (new Date(rec.uploadedAt).getTime() + EDIT_HOURS * 3600000 - NOW.getTime()) / 3600000;
   /**
-   * 能不能修改記錄的資料：管理者不限時間，上傳者本人一週內。
+   * 能不能修改檔案夾的資料：管理者不限時間，上傳者本人 14 天內。
    * @param {Object} u 目前的使用者
-   * @param {Object} rec 記錄
+   * @param {Object} rec 檔案夾
    * @returns {boolean}
    */
   const canEdit = (u, rec) => isAdmin(u) || (rec.uploaderId === u.id && editLeftHours(rec) > 0);
-  /** 能不能刪整筆：一般記錄跟修改一樣；書審及材料測試不能刪，只剩管理者能刪 */
+  /** 能不能刪整個檔案夾：一般的跟修改一樣；書審及材料測試只有管理者能刪 */
   const canDelete = (u, rec) => (rec.cat === 'review' ? isAdmin(u) : canEdit(u, rec));
-  /** 能不能增刪照片、文件：一般記錄跟修改一樣；書審的文件只能用「更新」換新檔 */
+  /** 能不能增刪照片、文件：一般的檔案夾跟修改一樣；書審的文件只能用「更新」換新檔 */
   const canEditFiles = (u, rec) => rec.cat !== 'review' && canEdit(u, rec);
   /** 書審及材料測試的文件：能傳文件的人都能更新，不限時間、不限上傳者 */
   const canUpdateDoc = (u, rec) => rec.cat === 'review' && canUploadPdf(u);
   const leftText = hours => (hours >= 24 ? `${Math.floor(hours / 24)} 天` : `${Math.max(1, Math.floor(hours))} 小時`);
 
   /**
-   * 手機版記錄頁上「還能不能改」的說明。
+   * 手機版檔案夾內容頁上「還能不能改」的說明。
    * @returns {string} 沒有要說明的時候回傳空字串
    */
   function editNote(u, rec) {
@@ -134,7 +136,7 @@
     const left = editLeftHours(rec);
     const review = rec.cat === 'review';
     if (left > 0) return review ? `你上傳的檔案夾，還可以修改 ${leftText(left)}` : `你上傳的檔案夾，還可以修改或刪除 ${leftText(left)}`;
-    return '已超過一週，不能修改或刪除。需要更正請找管理者';
+    return '已超過 14 天，不能修改或刪除。需要更正請找管理者';
   }
 
   // ---------- 文字 ----------
@@ -160,7 +162,7 @@
   const filtersActive = f => f.q.trim() !== '' || f.from !== '' || f.to !== '' || f.tags.length > 0;
 
   /**
-   * 依篩選條件過濾記錄，並依資料日期由新到舊排序。
+   * 依篩選條件過濾檔案夾，並依檔案夾建檔日期由新到舊排序。
    * @param {Object[]} records
    * @param {Object} f 篩選條件，格式同 DEFAULT_FILTERS；from／to 是 YYYY-MM-DD，前後都含
    * @param {Object} data 用來比對子分類名稱
@@ -196,7 +198,7 @@
     return limit ? out.slice(0, limit) : out;
   }
 
-  /** 工地記錄分兩層：月份 → 日期子分類（記錄要先依日期由新到舊排好）；kind 決定分段的底色 */
+  /** 工地記錄分兩層：月份 → 日期子分類（檔案夾要先依建檔日期由新到舊排好）；kind 決定分段的底色 */
   function groupSite(recs, notes) {
     const months = [];
     recs.forEach(r => {
@@ -280,6 +282,8 @@
 
   // ---------- 初始資料與操作記錄 ----------
   const logEntry = (userId, action, target, detail) => ({ id: uid('l'), at: nowIso(), userId, action, target, detail: detail || '' });
+  /** 「整合施工日誌」的內容：日期區間、幾份、幾頁（實際整合和示範資料用同一個格式） */
+  const mergeDetail = (from, to, n, pages) => `整合施工日誌（${ymd(from)}~${ymd(to)}，${n} 份、${pages} 頁）`;
   /** 「更新文件」的內容：文件名稱不變，換成新檔的內容 */
   const updateDocDetail = (name, fileName) => `${name}：換成新檔 ${fileName}`;
 
@@ -297,10 +301,11 @@
     Object.entries(data.siteNotes).forEach(([date, n]) => push(n.at, n.by, '子分類備註', siteSubName(date), n.text));
     data.billing.forEach(b => {
       push(b.createdAt, b.createdBy, '請款', billingName(b), '新增一期請款');
-      if (b.merged) push(b.merged.uploadedAt, b.merged.uploaderId, '請款', billingName(b), `整合施工日誌（${b.merged.pages} 頁）`);
+      if (b.merged) push(b.merged.uploadedAt, b.merged.uploaderId, '請款', billingName(b), mergeDetail(b.merged.from, b.merged.to, b.merged.sources.length, b.merged.pages));
       [...b.quotes, ...(b.merged ? [b.merged] : []), ...b.docs, ...b.others]
         .filter(it => it.approved).forEach(it => push(it.approved.at, it.approved.by, '請款', billingName(b), `審核完成：${it.name}`));
       if (b.photosApproved) push(b.photosApproved.at, b.photosApproved.by, '請款', billingName(b), `審核完成：請款照片 ${b.photos.length} 張`);
+      if (b.note) push(b.note.at, b.note.by, '請款', billingName(b), `備註：${b.note.text}`);
       if (b.done) push(b.done.at, b.done.by, '請款', billingName(b), '全部審核完成');
     });
     data.deleted.forEach(r => {
@@ -431,7 +436,7 @@
     </main>`;
   }
 
-  // 未登入：不管開哪個網址（包含 LINE 分享的記錄連結）都先看到這一頁
+  // 未登入：不管開哪個網址（包含 LINE 分享的檔案夾連結）都先看到這一頁
   function LoginScreen({ toast }) {
     return html`<main class="login">
       <h1 class="login-title"><${BrandLogo} />${APP_NAME}</h1>
@@ -445,7 +450,7 @@
 
   // ---------- 預覽彈窗（照片、PDF） ----------
   /**
-   * 照片預覽。gallery 是一筆記錄，或請款照片：{ title, photos, uploaderId?, uploadedAt? }
+   * 照片預覽。gallery 是一個檔案夾，或請款照片：{ title, photos, uploaderId?, uploadedAt? }
    */
   function Lightbox({ gallery, index, onIndex, onClose, toast }) {
     useBodyLock();
@@ -552,7 +557,7 @@
     : null);
 
   // ---------- 書審狀態、文件列表 ----------
-  /** 書審狀態：建築師事務所直接點選切換，其他人只看得到目前狀態 */
+  /** 書審狀態：管理者、建築師事務所直接點選切換，其他人只看得到目前狀態 */
   function StatusBlock({ rec, user, actions }) {
     const can = canToggleStatus(user);
     const cur = STATUS[rec.status] || STATUS.pending;
@@ -571,8 +576,8 @@
   }
 
   /**
-   * 記錄裡的 PDF：點一下預覽，每份都能單獨下載；書審另有「更新」換新檔（直接覆蓋）。
-   * 下載模式（dl.on）時，點一下是勾選。
+   * 檔案夾裡的 PDF：點一下預覽，每份都能單獨下載；書審另有「更新」換新檔（直接覆蓋）。
+   * 一次下載多個檔案（dl.on）時，點一下是勾選。
    */
   function DocList({ rec, user, actions, dl }) {
     const canUpdate = canUpdateDoc(user, rec);
@@ -748,6 +753,8 @@
     id: i.id, name: (i.name || '').trim() || i.origName, origName: i.origName || i.name, size: i.size, pages: i.pages, url: i.url,
     uploaderId: userId, uploadedAt: at, diary: !!i.diary
   });
+  /** 上傳、修改時文件列第二行的頁數和大小 */
+  const pdfMeta = f => `${f.pages ? `${f.pages} 頁｜` : ''}${f.size}`;
   /** 文件名稱不能空白（清空的話用原檔名） */
   const pdfNamesOk = list => list.every(f => (f.name || '').trim() || f.origName);
 
@@ -758,7 +765,7 @@
   });
 
   /**
-   * 把修改表單轉成要套用到記錄上的欄位。
+   * 把修改表單轉成要套用到檔案夾上的欄位。
    * @returns {{ error: string } | { patch: Object, newSub: Object|null }}
    */
   function buildEditPatch(rec, form, user, data) {
@@ -817,7 +824,7 @@
     if (renameOnly) {
       return pdfs.length ? html`<div class="field">
         <div class="field-label">文件 ${pdfs.length} 份</div>
-        <ul class="file-list">${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${f.size} onRename=${rename} />`)}</ul>
+        <ul class="file-list">${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${pdfMeta(f)} onRename=${rename} />`)}</ul>
       </div>` : null;
     }
     return html`<div class="field">
@@ -829,7 +836,7 @@
         </div>`)}
       </div>`}
       ${pdfs.length > 0 && html`<ul class="file-list">
-        ${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${f.size} onRename=${rename}
+        ${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${pdfMeta(f)} onRename=${rename}
           diary=${rec.cat === 'site'} onDiary=${setDiary} onRemove=${remove} />`)}
       </ul>`}
       <label class="btn btn-outline btn-block pick-inline">
@@ -897,7 +904,7 @@
     const [catId, setCatIdState] = useState(presetCat);
     const [items, setItems] = useState([]);
     const [reading, setReading] = useState(0);
-    // 日期（工地記錄的日期子分類、其他分類的資料日期）一律預設今天
+    // 日期（工地記錄的日期子分類、其他分類的檔案夾建檔日期）一律預設今天
     const [form, setFormState] = useState(() => ({
       day: today(), date: today(), title: defaultTitle(presetCat, false),
       tags: [], customTag: '', note: '', sub: '', newSubName: ''
@@ -1041,7 +1048,7 @@
       </div>`}
       ${shrunk.length > 0 && html`<div class="hint">照片已壓縮成長邊 2480px，A5 列印也清楚：${fmtSize(before)} → ${fmtSize(after)}</div>`}
       ${pdfs.length > 0 && html`<ul class="file-list">
-        ${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${`${f.pages ? `${f.pages} 頁｜` : ''}${f.size}`}
+        ${pdfs.map(f => html`<${PdfNameRow} key=${f.id} f=${f} meta=${pdfMeta(f)}
           onRename=${d.renameItem} diary=${diary} onDiary=${d.setDiary} onRemove=${d.removeItem} />`)}
       </ul>`}
     </div>`;
@@ -1068,15 +1075,17 @@
       </div>`;
   }
 
-  // ---------- 工地記錄日期子分類的備註 ----------
+  // ---------- 備註（工地記錄的日期子分類、請款） ----------
   /**
    * 備註的輸入框：改好按「儲存」或 Enter；按「取消」或 Esc 放棄。內容沒變就直接收起來，不留修改記錄。
    * @param {object} props
    * @param {string} props.text0 原本的備註（沒有就是空字串）
    * @param {(text: string) => void} props.onSave 儲存；空字串代表刪掉備註
    * @param {() => void} props.onCancel 放棄修改
+   * @param {string} [props.label] 輸入框的無障礙名稱
+   * @param {string} [props.placeholder]
    */
-  function SiteNoteEditor({ text0, onSave, onCancel }) {
+  function NoteEditor({ text0, onSave, onCancel, label = '子分類備註', placeholder = '例如：天氣、進場材料、當天的重點' }) {
     const [text, setText] = useState(text0);
     const input = useRef(null);
     useEffect(() => {
@@ -1091,7 +1100,7 @@
       else onSave(t);
     };
     return html`<form class="grp-note-edit" onSubmit=${submit}>
-      <input ref=${input} class="input" aria-label="子分類備註" placeholder="例如：天氣、進場材料、當天的重點"
+      <input ref=${input} class="input" aria-label=${label} placeholder=${placeholder}
         value=${text} onInput=${e => setText(e.target.value)} onKeyDown=${e => { if (e.key === 'Escape') onCancel(); }} />
       <button type="submit" class="btn btn-primary">儲存</button>
       <button type="button" class="btn btn-outline" onClick=${onCancel}>取消</button>
@@ -1112,7 +1121,7 @@
   function SiteNote({ g, user, note, size = 20 }) {
     if (!g.date) return null;
     if (note.date === g.date) {
-      return html`<${SiteNoteEditor} text0=${g.note ? g.note.text : ''}
+      return html`<${NoteEditor} text0=${g.note ? g.note.text : ''}
         onSave=${text => note.save(g.date, text)} onCancel=${() => note.edit(null)} />`;
     }
     return html`
@@ -1214,17 +1223,18 @@
 
   Object.assign(PR, {
     html, D, APP_NAME, NOW, nowIso, MAX_PHOTOS, MAX_PDF_BYTES, RECENT_KEYWORDS, GUEST, DEFAULT_FILTERS, LOG_ACTIONS, ROLES, ROLE_IDS, STATUS,
-    pad, uid, toggle, fmtSize, ymd, dt, isoDate, monthLabel, addDays, today, recentDays, siteSubName, billingRange, billingName, fromLabel,
+    pad, uid, toggle, fmtSize, ymd, dt, isoDate, monthLabel, addDays, today, recentDays, siteSubName, billingName, fromLabel,
     syncUsers, userById, catById, subList, subLabel, roleName,
     isAdmin, canUpload, canUploadCat, canUploadPdf, canToggleStatus, canManageSubcats, canEditSiteNote, canBilling, canApproveBilling,
+    canDeleteBillingFile, canEditBillingNote,
     editLeftHours, canEdit, canDelete, canEditFiles, canUpdateDoc, leftText, editNote,
     countText, byLine, docMeta, photoName, recordLink,
     byDateDesc, filtersActive, filterRecords, recentKeywords, groupFor, groupCount, useGroupOpen,
-    parseHash, logEntry, updateDocDetail, initialData, initialUsers,
+    parseHash, logEntry, mergeDetail, updateDocDetail, initialData, initialUsers,
     Icon, Photo, BrandLogo, TopBar, useBodyLock, useEscape, Sheet, DemoBar, DisabledScreen, LoginScreen, Lightbox, PdfViewer,
     StatusBlock, DocList, DateRange,
     validate, Fields, editFormOf, buildEditPatch, EditFiles, toPhoto, toPdf,
     useUploadDraft, SelectedFiles, UploadProgress,
-    SiteNote, ShareSheet, DeleteSheet, PurgeSheet, AddAccountSheet, DemoSheet, OrigName
+    NoteEditor, SiteNote, ShareSheet, DeleteSheet, PurgeSheet, AddAccountSheet, DemoSheet, OrigName
   });
 })();

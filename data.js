@@ -34,7 +34,7 @@ window.DEMO = (() => {
   const roleOf = id => users.find(u => u.id === id).role;
 
   const pdf = (name, size, pages, extra) => Object.assign({ name, size, pages }, extra);
-  // 上傳者的身分記在記錄上；每份文件各自記上傳者與時間（書審文件會被別人更新），沒寫就跟記錄一樣
+  // 上傳者的身分記在檔案夾上；每份文件各自記上傳者與時間（書審文件會被別人更新），沒寫就跟檔案夾一樣
   function rec(o) {
     const r = Object.assign({ photos: [], pdfs: [], tags: [], note: '' }, o);
     r.role = roleOf(r.uploaderId);
@@ -116,7 +116,7 @@ window.DEMO = (() => {
       pdfs: [diary(`施工日誌-2026-09-${d}.pdf`, `${(0.4 + (i % 4) * 0.1).toFixed(1)}MB`, 2 + (i % 3))]
     })),
 
-    // 書審及材料測試（承包商、管理者上傳；狀態由建築師事務所切換；文件誰都能更新、不能刪）
+    // 書審及材料測試（管理者、建築師事務所、承包商能傳；狀態由管理者、建築師事務所切換；能傳文件的人都能更新文件，整個檔案夾只有管理者能刪）
     rec({ id: 'r18', cat: 'review', sub: 'sc1', status: 'pass', statusBy: 'u3', statusAt: '2026-03-05T11:25:00+08:00', date: '2026-02-25', title: '工期規劃', uploaderId: 'u4', uploadedAt: '2026-02-25T15:10:00+08:00', tags: ['工期', '進度'], note: '依建築師意見調整結構體工期後重新送審', pdfs: [pdf('預定進度表-修正版.pdf', '1.9MB', 6, { uploadedAt: '2026-03-04T09:20:00+08:00' })] }),
     rec({ id: 'r20', cat: 'review', sub: 'sc2', status: 'pass', statusBy: 'u3', statusAt: '2026-04-28T10:30:00+08:00', date: '2026-04-20', title: '鋼筋材料送審', uploaderId: 'u4', uploadedAt: '2026-04-20T16:45:00+08:00', tags: ['鋼筋', '材料送審'], pdfs: [pdf('鋼筋-出廠證明.pdf', '3.2MB', 12), pdf('鋼筋-規格表.pdf', '0.8MB', 3)] }),
     rec({ id: 'r21', cat: 'review', sub: 'sc3', status: 'pass', statusBy: 'u3', statusAt: '2026-04-30T14:00:00+08:00', date: '2026-04-22', title: '預拌混凝土配比送審', uploaderId: 'u4', uploadedAt: '2026-04-22T10:05:00+08:00', tags: ['混凝土', '配比', '材料送審'], pdfs: [pdf('混凝土配比設計.pdf', '1.1MB', 7)] }),
@@ -144,6 +144,7 @@ window.DEMO = (() => {
 
   // 請款：獨立的資料，不跟上面的檔案夾共用；照片、文件是從檔案夾挑過來的（存一份當時的副本）
   // 建築師事務所（江維玲）按「審核完成」：文件一份一份按，請款照片整區按一次；前三期已經全部審核完成，第 4 期還在進行
+  // 0929 起請款沒有日期，只有期數；整合施工日誌記下整合時用的日期區間；名稱後面可以加備註
   const findRec = id => records.find(r => r.id === id);
   const fromOf = r => ({ recId: r.id, title: r.title, date: r.date });
   const stamp = at => ({ by: 'u3', at });
@@ -167,9 +168,10 @@ window.DEMO = (() => {
   const A3 = '2026-09-16T10:00:00+08:00';
   const billing = [
     {
-      id: 'b1', no: 1, from: '2026-03-15', to: '2026-05-31', createdBy: 'u2', createdAt: '2026-06-02T10:00:00+08:00',
+      id: 'b1', no: 1, createdBy: 'u2', createdAt: '2026-06-02T10:00:00+08:00',
+      note: { text: '已撥款', by: 'u1', at: '2026-06-20T10:00:00+08:00' },
       done: { by: 'u3', at: '2026-06-05T16:00:00+08:00' },
-      merged: Object.assign({ id: 'b1-m', name: '第1期整合施工日誌.pdf', size: '13.0MB', pages: 67, sources: ['r40-d1', 'r41-d1', 'r42-d1'], uploaderId: 'u2', uploadedAt: '2026-06-02T10:05:00+08:00' }, approved(A1)),
+      merged: Object.assign({ id: 'b1-m', name: '第1期整合施工日誌.pdf', size: '13.0MB', pages: 67, from: '2026-03-15', to: '2026-05-31', sources: ['r40-d1', 'r41-d1', 'r42-d1'], uploaderId: 'u2', uploadedAt: '2026-06-02T10:05:00+08:00' }, approved(A1)),
       photos: pickPhotos(1, [['r06', 2], ['r07', 5], ['r08', 3], ['r09', 7]]),
       photosApproved: stamp(A1),
       docs: [pickDoc('r20', 1, A1), pickDoc('r21', 1, A1), pickDoc('r31', 1, A1)],
@@ -177,9 +179,9 @@ window.DEMO = (() => {
       others: [pdf('第1期請款函.pdf', '0.2MB', 1, Object.assign({ id: 'b1-o1', uploaderId: 'u2', uploadedAt: '2026-06-02T10:12:00+08:00' }, approved(A1)))]
     },
     {
-      id: 'b2', no: 2, from: '2026-06-01', to: '2026-07-31', createdBy: 'u2', createdAt: '2026-08-02T09:00:00+08:00',
+      id: 'b2', no: 2, createdBy: 'u2', createdAt: '2026-08-02T09:00:00+08:00', note: null,
       done: { by: 'u3', at: '2026-08-06T15:30:00+08:00' },
-      merged: Object.assign({ id: 'b2-m', name: '第2期整合施工日誌.pdf', size: '10.5MB', pages: 57, sources: ['r43-d1', 'r44-d1'], uploaderId: 'u2', uploadedAt: '2026-08-02T09:05:00+08:00' }, approved(A2)),
+      merged: Object.assign({ id: 'b2-m', name: '第2期整合施工日誌.pdf', size: '10.5MB', pages: 57, from: '2026-06-01', to: '2026-07-31', sources: ['r43-d1', 'r44-d1'], uploaderId: 'u2', uploadedAt: '2026-08-02T09:05:00+08:00' }, approved(A2)),
       // 第二張示範自己取的名稱
       photos: pickPhotos(2, [['r10', 4], ['r10', 12, '一樓版灌漿完成面']]),
       photosApproved: stamp(A2),
@@ -191,18 +193,19 @@ window.DEMO = (() => {
       ]
     },
     {
-      id: 'b3', no: 3, from: '2026-08-01', to: '2026-08-31', createdBy: 'u2', createdAt: '2026-09-10T17:05:00+08:00',
+      id: 'b3', no: 3, createdBy: 'u2', createdAt: '2026-09-10T17:05:00+08:00', note: null,
       done: { by: 'u3', at: '2026-09-16T10:30:00+08:00' },
-      merged: Object.assign({ id: 'b3-m', name: '第3期整合施工日誌.pdf', size: '5.6MB', pages: 31, sources: ['r12-d1'], uploaderId: 'u2', uploadedAt: '2026-09-10T17:10:00+08:00' }, approved(A3)),
+      merged: Object.assign({ id: 'b3-m', name: '第3期整合施工日誌.pdf', size: '5.6MB', pages: 31, from: '2026-08-01', to: '2026-08-31', sources: ['r12-d1'], uploaderId: 'u2', uploadedAt: '2026-09-10T17:10:00+08:00' }, approved(A3)),
       photos: pickPhotos(3, [['r11', 3], ['r11', 9]]),
       photosApproved: stamp(A3),
       docs: [],
       quotes: [pdf('第3期估價單.pdf', '1.1MB', 5, Object.assign({ id: 'b3-q1', uploaderId: 'u2', uploadedAt: '2026-09-10T17:05:00+08:00' }, approved(A3)))],
       others: [pdf('第3期請款函.pdf', '0.2MB', 1, Object.assign({ id: 'b3-o1', uploaderId: 'u2', uploadedAt: '2026-09-10T17:12:00+08:00' }, approved(A3)))]
     },
-    // 九月這期還在進行：估價單審核完成了，請款照片和書審文件還沒；還沒整合，按「整合施工日誌」會列出九月每個工作天的施工日誌
+    // 九月這期還在進行：估價單審核完成了，請款照片和書審文件還沒；還沒整合，整合時選 09/01～09/30 會列出九月每個工作天的施工日誌
     {
-      id: 'b4', no: 4, from: '2026-09-01', to: '2026-09-30', createdBy: 'u2', createdAt: '2026-09-21T09:00:00+08:00', done: null,
+      id: 'b4', no: 4, createdBy: 'u2', createdAt: '2026-09-21T09:00:00+08:00', done: null,
+      note: { text: '九月的照片還在補，月底前送齊', by: 'u2', at: '2026-09-23T10:00:00+08:00' },
       merged: null,
       photos: pickPhotos(4, [['r14', 2], ['r15', 5]]),
       photosApproved: null,
