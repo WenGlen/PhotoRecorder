@@ -478,9 +478,10 @@
       return () => window.removeEventListener('keydown', onKey);
     }, []);
     if (!p) return null;
+    // 請款照片：從檔案夾挑的寫出處，直接上傳的跟請款側窗一樣寫「直接上傳」（請款的相簿沒有上傳者和時間）
     const source = p.from
       ? `來自：${ymd(p.from.date)} ${p.from.title}`
-      : `上傳：${userById(gallery.uploaderId).name}｜${dt(gallery.uploadedAt)}`;
+      : gallery.uploadedAt ? `上傳：${userById(gallery.uploaderId).name}｜${dt(gallery.uploadedAt)}` : '直接上傳';
     const caption = `${gallery.title}｜${p.label}`;
     // 觸控事件用小寫 ontouchstart：Preact 會直接當成 touchstart，不靠瀏覽器有沒有 ontouchstart 屬性來猜大小寫
     return html`

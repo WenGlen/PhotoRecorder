@@ -252,6 +252,7 @@
   /**
    * 估價單、整合施工日誌、其他文件的清單：點檔名那一列預覽。還沒審核完成的：給了 onRemove，檔名右邊就有刪除的 X；
    * 給了 onApprove，最後一行左邊就有「審核完成」（右邊是「下載」）。審核完成後改成審核的人和時間，也不能再刪。
+   * 這三種都是直接上傳（或整合出來）的檔案，沒有「來自哪個檔案夾」；整合施工日誌的 from／to 是整合用的日期區間，不是出處。
    */
   function FileRows({ files, actions, onRemove, onApprove }) {
     return html`<ul class="file-list">
@@ -260,7 +261,7 @@
           <button class="file-row" onClick=${() => actions.openPdf(f)}>
             <${Icon} name="file" />
             <span class="file-name">${f.name}</span>
-            <span class="file-meta">${f.from ? `來自：${fromLabel(f.from)}｜` : ''}${docMeta(f)}</span>
+            <span class="file-meta">${docMeta(f)}</span>
           </button>
           ${!f.approved && onRemove && html`<${RemoveBtn} name=${f.name} onClick=${() => onRemove(f)} />`}
         </div>
