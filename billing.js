@@ -172,10 +172,11 @@
     }
     const canEdit = canEditBillingNote(user);
     if (!bill.note && !canEdit) return null;
-    return html`<span class="bill-note-line" onClick=${stop}>
+    // 只擋鉛筆和備註文字：這一行會撐滿名稱右邊，空白的地方點了照樣打開這一期（跟檔案夾列表一樣整列都能點）
+    return html`<span class="bill-note-line">
       ${canEdit && html`<button class="icon-btn grp-edit" aria-label=${`編輯${billingName(bill)}的備註`}
-        onClick=${() => onEdit(true)}><${Icon} name="pencil" size=${18} /></button>`}
-      ${bill.note && html`<span class="bill-note" title=${bill.note.text}>${bill.note.text}</span>`}
+        onClick=${e => { stop(e); onEdit(true); }}><${Icon} name="pencil" size=${18} /></button>`}
+      ${bill.note && html`<span class="bill-note" title=${bill.note.text} onClick=${stop}>${bill.note.text}</span>`}
     </span>`;
   }
 
