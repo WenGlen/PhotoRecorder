@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-Hant-TW" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="theme-color" content="#ffffff">
+  <!-- 加到手機桌面（A51）：不放 apple-mobile-web-app-capable，iPhone 的桌面圖示才會用 Safari 打開、沿用登入；
+       桌面圖示的名字 apple-mobile-web-app-title 和 manifest 由 plugins/home-screen.ts 產生，manifest 的 link 開畫面時才插（只給 Android） -->
+  <title>阿美中會工地記錄平台</title>
+  <!-- 分頁的小圖示和 iPhone「加入主畫面」的圖示（A48，主人 2026-10-04 給的圖，跟左上角的 logo 同一張）；
+       iPhone 的圖示補了白底（透明的地方 iOS 會補成黑色）。/favicon.ico 給沒看這裡、直接來要的程式 -->
+  <link rel="icon" type="image/png" sizes="240x240" href="/PhotoRecorder/favicon.png">
+  <link rel="apple-touch-icon" href="/PhotoRecorder/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
+  <script type="module" crossorigin src="/PhotoRecorder/assets/index-CHKH8u3J.js"></script>
+  <link rel="modulepreload" crossorigin href="/PhotoRecorder/assets/rolldown-runtime-W7wSyTde.js">
+  <link rel="stylesheet" crossorigin href="/PhotoRecorder/assets/index-Dmhv2I18.css">
+  <meta name="apple-mobile-web-app-title" content="阿美中會工地記錄">
+</head>
+<body>
+  <!-- 開畫面讀資料時的讀取畫面，跟 src/components/LoadingScreen.tsx 長得一樣（A42）；main.tsx 接上畫面時清掉 -->
+  <div id="app"><div class="loading-screen" role="status"><img class="loading-logo" src="/PhotoRecorder/logo.png" alt="" width="84" height="84"><span class="spinner" aria-hidden="true"></span><p>載入中…</p></div></div>
+</body>
+</html>
